@@ -35,7 +35,6 @@ logs/
 # Extracted GNU BG files (generated)
 lib/eval_core.c
 lib/position_utils.c
-lib/gnubg_core.c
 lib/*.bd
 lib/*.wd
 
