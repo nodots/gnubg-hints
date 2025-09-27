@@ -68,6 +68,18 @@ console.log(`Action: ${doubleHint.action}`); // "double", "no-double", "too-good
 GnuBgHints.shutdown();
 ```
 
+### Command line interface
+
+After building the project you can use the bundled CLI to retrieve the top five moves for a GNU position ID and dice roll:
+
+```bash
+npm run build
+node dist/cli.js 4HPwATDgc/ABMA 3 1
+
+# or, once published and installed globally
+gnubg-hints-cli 4HPwATDgc/ABMA [3,1]
+```
+
 ## API Reference
 
 ### `GnuBgHints.initialize(weightsPath?: string): Promise<void>`
