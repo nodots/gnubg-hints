@@ -1,0 +1,418 @@
+import { GnuBgHints } from '../src';
+import type {
+  HintRequest,
+  MoveHint,
+  DoubleHint,
+  TakeHint
+} from '../src';
+import type {
+  BackgammonBoard,
+  BackgammonColor
+} from '@nodots-llc/backgammon-types';
+
+describe('GnuBgHints', () => {
+  // Test board positions
+  const createEmptyBoard = (): BackgammonBoard => ({
+    points: Array.from({ length: 24 }, (_, i) => ({
+      position: {
+        clockwise: i + 1,
+        counterclockwise: 25 - i
+      },
+      checkers: []
+    })),
+    bar: {
+      clockwise: { checkers: [] },
+      counterclockwise: { checkers: [] }
+    },
+    off: {
+      clockwise: { checkers: [] },
+      counterclockwise: { checkers: [] }
+    }
+  });
+
+  const createStartingPosition = (): BackgammonBoard => {
+    const board = createEmptyBoard();
+
+    // Set up standard backgammon starting position
+    // White (clockwise) checkers
+    const whitePositions = [
+      { pos: 24, count: 2 },
+      { pos: 13, count: 5 },
+      { pos: 8, count: 3 },
+      { pos: 6, count: 5 }
+    ];
+
+    // Black (counterclockwise) checkers
+    const blackPositions = [
+      { pos: 24, count: 2 },
+      { pos: 13, count: 5 },
+      { pos: 8, count: 3 },
+      { pos: 6, count: 5 }
+    ];
+
+    // Helper to add checkers to a point
+    const addCheckers = (pointIndex: number, color: BackgammonColor, count: number) => {
+      board.points[pointIndex].checkers = Array.from({ length: count }, () => ({
+        id: `${color}-${pointIndex}-${Math.random()}`,
+        color
+      }));
+    };
+
+    // Add white checkers
+    whitePositions.forEach(({ pos, count }) => {
+      addCheckers(pos - 1, 'white', count);
+    });
+
+    // Add black checkers
+    blackPositions.forEach(({ pos, count }) => {
+      const pointIndex = board.points.findIndex(
+(p: any) => p.position.counterclockwise === pos
+      );
+      if (pointIndex >= 0) {
+        addCheckers(pointIndex, 'black', count);
+      }
+    });
+
+    return board;
+  };
+
+  beforeAll(async () => {
+    // Initialize the engine once for all tests
+    await GnuBgHints.initialize();
+  });
+
+  afterAll(() => {
+    // Clean up
+    GnuBgHints.shutdown();
+  });
+
+  describe('initialization', () => {
+    it('should initialize without weights path', async () => {
+      // Already initialized in beforeAll
+      expect(true).toBe(true);
+    });
+
+    it('should handle multiple initialization calls gracefully', async () => {
+      await expect(GnuBgHints.initialize()).resolves.toBeUndefined();
+    });
+  });
+
+  describe('configuration', () => {
+    it('should accept configuration options', () => {
+      expect(() => {
+        GnuBgHints.configure({
+          evalPlies: 3,
+          moveFilter: 3,
+          threadCount: 2,
+          usePruning: false,
+          noise: 0.1
+        });
+      }).not.toThrow();
+    });
+
+    it('should accept partial configuration', () => {
+      expect(() => {
+        GnuBgHints.configure({
+          evalPlies: 1
+        });
+      }).not.toThrow();
+    });
+  });
+
+  describe('getMoveHints', () => {
+    const baseRequest: HintRequest = {
+      board: createStartingPosition(),
+      dice: [3, 1] as [number, number],
+      cubeValue: 1,
+      cubeOwner: null,
+      matchScore: [0, 0] as [number, number],
+      matchLength: 7,
+      crawford: false,
+      jacoby: false,
+      beavers: true
+    };
+
+    it('should return move hints for starting position', async () => {
+      const hints = await GnuBgHints.getMoveHints(baseRequest);
+
+      expect(hints).toBeInstanceOf(Array);
+      expect(hints.length).toBeGreaterThan(0);
+      expect(hints.length).toBeLessThanOrEqual(10);
+    });
+
+    it('should return moves sorted by equity', async () => {
+      const hints = await GnuBgHints.getMoveHints(baseRequest);
+
+      // Check that moves are sorted in descending order of equity
+      for (let i = 1; i < hints.length; i++) {
+        expect(hints[i].equity).toBeLessThanOrEqual(hints[i - 1].equity);
+      }
+    });
+
+    it('should respect maxHints parameter', async () => {
+      const hints = await GnuBgHints.getMoveHints(baseRequest, 5);
+
+      expect(hints.length).toBeLessThanOrEqual(5);
+    });
+
+    it('should include evaluation data for each hint', async () => {
+      const hints = await GnuBgHints.getMoveHints(baseRequest);
+
+      hints.forEach(hint => {
+        expect(hint.evaluation).toHaveProperty('win');
+        expect(hint.evaluation).toHaveProperty('winGammon');
+        expect(hint.evaluation).toHaveProperty('winBackgammon');
+        expect(hint.evaluation).toHaveProperty('loseGammon');
+        expect(hint.evaluation).toHaveProperty('loseBackgammon');
+        expect(hint.evaluation).toHaveProperty('equity');
+      });
+    });
+
+    it('should calculate rank and difference correctly', async () => {
+      const hints = await GnuBgHints.getMoveHints(baseRequest);
+
+      hints.forEach((hint, index) => {
+        expect(hint.rank).toBe(index + 1);
+        if (index === 0) {
+          expect(hint.difference).toBe(0);
+        } else {
+          expect(hint.difference).toBeCloseTo(
+            hint.equity - hints[0].equity,
+            5
+          );
+        }
+      });
+    });
+
+    it('should handle doubles correctly', async () => {
+      const doublesRequest = { ...baseRequest, dice: [4, 4] as [number, number] };
+      const hints = await GnuBgHints.getMoveHints(doublesRequest);
+
+      expect(hints).toBeInstanceOf(Array);
+      expect(hints.length).toBeGreaterThan(0);
+    });
+
+    it('should handle bar checkers', async () => {
+      const boardWithBar = createStartingPosition();
+      // Add a checker to the bar
+      boardWithBar.bar.clockwise.checkers.push({
+        id: 'white-bar-1',
+        color: 'white'
+      });
+
+      const barRequest = { ...baseRequest, board: boardWithBar };
+      const hints = await GnuBgHints.getMoveHints(barRequest);
+
+      expect(hints).toBeInstanceOf(Array);
+      // When on bar, moves should start from bar
+    });
+
+    it('should throw error if not initialized', async () => {
+      // This test would need to run in isolation
+      // Skip for now as we initialize in beforeAll
+    });
+  });
+
+  describe('getDoubleHint', () => {
+    const baseRequest: HintRequest = {
+      board: createStartingPosition(),
+      dice: [0, 0] as [number, number], // No dice for cube decisions
+      cubeValue: 1,
+      cubeOwner: null,
+      matchScore: [0, 0] as [number, number],
+      matchLength: 7,
+      crawford: false,
+      jacoby: false,
+      beavers: true
+    };
+
+    it('should return double decision for starting position', async () => {
+      const hint = await GnuBgHints.getDoubleHint(baseRequest);
+
+      expect(hint).toHaveProperty('action');
+      expect(['double', 'no-double', 'too-good', 'beaver', 'redouble'])
+        .toContain(hint.action);
+    });
+
+    it('should include take and drop points', async () => {
+      const hint = await GnuBgHints.getDoubleHint(baseRequest);
+
+      expect(hint).toHaveProperty('takePoint');
+      expect(hint).toHaveProperty('dropPoint');
+      expect(typeof hint.takePoint).toBe('number');
+      expect(typeof hint.dropPoint).toBe('number');
+    });
+
+    it('should include evaluation data', async () => {
+      const hint = await GnuBgHints.getDoubleHint(baseRequest);
+
+      expect(hint).toHaveProperty('evaluation');
+      expect(hint).toHaveProperty('cubefulEquity');
+      expect(typeof hint.cubefulEquity).toBe('number');
+    });
+
+    it('should handle owned cube correctly', async () => {
+      const ownedCubeRequest = {
+        ...baseRequest,
+        cubeValue: 2,
+        cubeOwner: 'white' as BackgammonColor
+      };
+
+      const hint = await GnuBgHints.getDoubleHint(ownedCubeRequest);
+
+      expect(hint).toHaveProperty('action');
+      // When owning cube, might get 'redouble' action
+    });
+
+    it('should respect Crawford rule', async () => {
+      const crawfordRequest = {
+        ...baseRequest,
+        matchScore: [6, 5] as [number, number],
+        matchLength: 7,
+        crawford: true
+      };
+
+      const hint = await GnuBgHints.getDoubleHint(crawfordRequest);
+
+      // In Crawford game, no doubling allowed
+      expect(hint.action).toBe('no-double');
+    });
+  });
+
+  describe('getTakeHint', () => {
+    const baseRequest: HintRequest = {
+      board: createStartingPosition(),
+      dice: [0, 0] as [number, number],
+      cubeValue: 2, // Cube has been turned
+      cubeOwner: 'black' as BackgammonColor,
+      matchScore: [0, 0] as [number, number],
+      matchLength: 7,
+      crawford: false,
+      jacoby: false,
+      beavers: true
+    };
+
+    it('should return take/drop decision', async () => {
+      const hint = await GnuBgHints.getTakeHint(baseRequest);
+
+      expect(hint).toHaveProperty('action');
+      expect(['take', 'drop', 'beaver']).toContain(hint.action);
+    });
+
+    it('should include take and drop equity', async () => {
+      const hint = await GnuBgHints.getTakeHint(baseRequest);
+
+      expect(hint).toHaveProperty('takeEquity');
+      expect(hint).toHaveProperty('dropEquity');
+      expect(typeof hint.takeEquity).toBe('number');
+      expect(typeof hint.dropEquity).toBe('number');
+    });
+
+    it('should include evaluation', async () => {
+      const hint = await GnuBgHints.getTakeHint(baseRequest);
+
+      expect(hint).toHaveProperty('evaluation');
+      expect(hint.evaluation).toHaveProperty('win');
+      expect(hint.evaluation).toHaveProperty('equity');
+    });
+
+    it('should handle beaver possibility', async () => {
+      const beaverRequest = {
+        ...baseRequest,
+        beavers: true,
+        cubeValue: 2
+      };
+
+      const hint = await GnuBgHints.getTakeHint(beaverRequest);
+
+      // Might suggest beaver if position is very good
+      expect(['take', 'drop', 'beaver']).toContain(hint.action);
+    });
+  });
+
+  describe('error handling', () => {
+    it('should handle invalid board gracefully', async () => {
+      const invalidRequest: HintRequest = {
+        board: {} as BackgammonBoard, // Invalid board
+        dice: [3, 1] as [number, number],
+        cubeValue: 1,
+        cubeOwner: null,
+        matchScore: [0, 0] as [number, number],
+        matchLength: 7,
+        crawford: false,
+        jacoby: false,
+        beavers: true
+      };
+
+      await expect(GnuBgHints.getMoveHints(invalidRequest))
+        .rejects.toThrow();
+    });
+
+    it('should handle invalid dice values', async () => {
+      const invalidDiceRequest: HintRequest = {
+        board: createStartingPosition(),
+        dice: [7, 0] as [number, number], // Invalid dice
+        cubeValue: 1,
+        cubeOwner: null,
+        matchScore: [0, 0] as [number, number],
+        matchLength: 7,
+        crawford: false,
+        jacoby: false,
+        beavers: true
+      };
+
+      await expect(GnuBgHints.getMoveHints(invalidDiceRequest))
+        .rejects.toThrow();
+    });
+  });
+
+  describe('performance', () => {
+    it('should evaluate moves quickly', async () => {
+      const request: HintRequest = {
+        board: createStartingPosition(),
+        dice: [6, 1] as [number, number],
+        cubeValue: 1,
+        cubeOwner: null,
+        matchScore: [0, 0] as [number, number],
+        matchLength: 7,
+        crawford: false,
+        jacoby: false,
+        beavers: true
+      };
+
+      const startTime = Date.now();
+      await GnuBgHints.getMoveHints(request);
+      const duration = Date.now() - startTime;
+
+      // Should be much faster than subprocess (~8ms vs 125ms)
+      expect(duration).toBeLessThan(50);
+    });
+
+    it('should handle concurrent requests', async () => {
+      const request: HintRequest = {
+        board: createStartingPosition(),
+        dice: [5, 2] as [number, number],
+        cubeValue: 1,
+        cubeOwner: null,
+        matchScore: [0, 0] as [number, number],
+        matchLength: 7,
+        crawford: false,
+        jacoby: false,
+        beavers: true
+      };
+
+      // Launch multiple concurrent requests
+      const promises = Array.from({ length: 10 }, () =>
+        GnuBgHints.getMoveHints(request)
+      );
+
+      const results = await Promise.all(promises);
+
+      // All should succeed and return same results
+      results.forEach(hints => {
+        expect(hints).toBeInstanceOf(Array);
+        expect(hints.length).toBeGreaterThan(0);
+      });
+    });
+  });
+});

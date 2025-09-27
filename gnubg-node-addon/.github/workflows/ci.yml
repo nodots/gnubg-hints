@@ -1,0 +1,186 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  lint-and-type-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: 'deps/gnubg-nodots-1.08.003/gnubg-node-addon/package-lock.json'
+
+      - name: Install dependencies
+        working-directory: deps/gnubg-nodots-1.08.003/gnubg-node-addon
+        run: npm ci
+
+      - name: Type check
+        working-directory: deps/gnubg-nodots-1.08.003/gnubg-node-addon
+        run: npm run build:ts
+
+  test:
+    needs: lint-and-type-check
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        node-version: [16, 18, 20]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+          cache-dependency-path: 'deps/gnubg-nodots-1.08.003/gnubg-node-addon/package-lock.json'
+
+      - name: Install build tools (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3
+
+      - name: Install build tools (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          xcode-select --install || true
+
+      - name: Install build tools (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          npm install -g windows-build-tools
+
+      - name: Install dependencies
+        working-directory: deps/gnubg-nodots-1.08.003/gnubg-node-addon
+        run: npm ci
+
+      - name: Extract GNU BG core
+        working-directory: deps/gnubg-nodots-1.08.003/gnubg-node-addon
+        shell: bash
+        run: ./scripts/extract-gnubg-core.sh
+
+      - name: Build native addon
+        working-directory: deps/gnubg-nodots-1.08.003/gnubg-node-addon
+        run: npm run build:native
+
+      - name: Build TypeScript
+        working-directory: deps/gnubg-nodots-1.08.003/gnubg-node-addon
+        run: npm run build:ts
+
+      - name: Run tests
+        working-directory: deps/gnubg-nodots-1.08.003/gnubg-node-addon
+        run: npm test
+
+  coverage:
+    needs: test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: 'deps/gnubg-nodots-1.08.003/gnubg-node-addon/package-lock.json'
+
+      - name: Install dependencies
+        working-directory: deps/gnubg-nodots-1.08.003/gnubg-node-addon
+        run: npm ci
+
+      - name: Extract GNU BG core
+        working-directory: deps/gnubg-nodots-1.08.003/gnubg-node-addon
+        shell: bash
+        run: ./scripts/extract-gnubg-core.sh
+
+      - name: Build
+        working-directory: deps/gnubg-nodots-1.08.003/gnubg-node-addon
+        run: npm run build
+
+      - name: Run tests with coverage
+        working-directory: deps/gnubg-nodots-1.08.003/gnubg-node-addon
+        run: npm run test -- --coverage
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          directory: deps/gnubg-nodots-1.08.003/gnubg-node-addon/coverage
+
+  benchmark:
+    needs: test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: 'deps/gnubg-nodots-1.08.003/gnubg-node-addon/package-lock.json'
+
+      - name: Install dependencies
+        working-directory: deps/gnubg-nodots-1.08.003/gnubg-node-addon
+        run: npm ci
+
+      - name: Extract GNU BG core
+        working-directory: deps/gnubg-nodots-1.08.003/gnubg-node-addon
+        shell: bash
+        run: ./scripts/extract-gnubg-core.sh
+
+      - name: Build
+        working-directory: deps/gnubg-nodots-1.08.003/gnubg-node-addon
+        run: npm run build
+
+      - name: Run benchmark
+        working-directory: deps/gnubg-nodots-1.08.003/gnubg-node-addon
+        run: node benchmark/performance.js
+
+  publish:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: [test, coverage]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          registry-url: 'https://registry.npmjs.org'
+          cache: 'npm'
+          cache-dependency-path: 'deps/gnubg-nodots-1.08.003/gnubg-node-addon/package-lock.json'
+
+      - name: Install dependencies
+        working-directory: deps/gnubg-nodots-1.08.003/gnubg-node-addon
+        run: npm ci
+
+      - name: Extract GNU BG core
+        working-directory: deps/gnubg-nodots-1.08.003/gnubg-node-addon
+        shell: bash
+        run: ./scripts/extract-gnubg-core.sh
+
+      - name: Build
+        working-directory: deps/gnubg-nodots-1.08.003/gnubg-node-addon
+        run: npm run build
+
+      - name: Publish to npm
+        working-directory: deps/gnubg-nodots-1.08.003/gnubg-node-addon
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public

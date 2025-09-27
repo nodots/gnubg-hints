@@ -1,0 +1,48 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+
+# Build outputs
+build/
+dist/
+*.tgz
+
+# TypeScript
+*.tsbuildinfo
+
+# Coverage
+coverage/
+.nyc_output/
+
+# Environment files
+.env
+.env.local
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+logs/
+*.log
+
+# Extracted GNU BG files (generated)
+lib/eval_core.c
+lib/position_utils.c
+lib/gnubg_core.c
+lib/*.bd
+lib/*.wd
+
+# Temporary files
+tmp/
+.tmp/
+
+# Native addon build artifacts
+build/Release/
+build/Debug/
