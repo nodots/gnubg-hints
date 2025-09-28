@@ -11,14 +11,14 @@
     "configure": "node-gyp configure",
     "build:native": "node-gyp build",
     "build:ts": "tsc",
-    "build": "npm run build:native && npm run build:ts",
-    "rebuild": "node-gyp rebuild && npm run build:ts",
+    "build": "node-gyp build && tsc",
+    "rebuild": "node-gyp rebuild && tsc",
     "test": "jest",
     "test:coverage": "jest --coverage --verbose",
     "install": "node-gyp rebuild",
     "publish:npm": "npm publish --access public",
-    "prepublishOnly": "npm run build",
-    "pretest": "npm run build:native"
+    "prepublishOnly": "node-gyp build && tsc",
+    "pretest": "node-gyp build"
   },
   "engines": {
     "node": ">=14.0.0"
