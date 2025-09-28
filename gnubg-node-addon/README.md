@@ -172,6 +172,17 @@ npm run build:ts
 npm test
 ```
 
+> **Working inside a larger workspace?**
+>
+> If this addon lives inside a monorepo (for example at `packages/gnubg-hints/gnubg-node-addon`), make sure you run the commands **from this directory** or pass `--prefix` so that npm targets only this package:
+>
+> ```bash
+> npm --prefix packages/gnubg-hints/gnubg-node-addon install
+> npm --prefix packages/gnubg-hints/gnubg-node-addon run build
+> ```
+>
+> Running `npm run build` from the workspace root will execute every package's build script.
+
 ## Performance
 
 Benchmarks comparing subprocess vs native addon:
