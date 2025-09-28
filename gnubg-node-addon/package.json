@@ -1,5 +1,5 @@
 {
-  "name": "@nodots/gnubg-hints",
+  "name": "@nodots-llc/gnubg-hints",
   "version": "1.0.0",
   "description": "GNU Backgammon hint engine for Node.js with TypeScript support",
   "main": "dist/index.js",
@@ -16,6 +16,7 @@
     "test": "jest",
     "test:coverage": "jest --coverage --verbose",
     "install": "node-gyp rebuild",
+    "publish:npm": "npm publish --access public",
     "prepublishOnly": "npm run build",
     "pretest": "npm run build:native"
   },

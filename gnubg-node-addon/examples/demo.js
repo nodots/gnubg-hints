@@ -3,7 +3,7 @@
 /**
  * GNU Backgammon Hints - Demo Script
  *
- * This script demonstrates how to use the @nodots/gnubg-hints package
+ * This script demonstrates how to use the @nodots-llc/gnubg-hints package
  * to get move hints for backgammon positions.
  */
 

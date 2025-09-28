@@ -13,24 +13,24 @@ A high-performance Node.js native addon that exposes GNU Backgammon's hint engin
 ## Installation
 
 ```bash
-npm install @nodots/gnubg-hints
+npm install @nodots-llc/gnubg-hints
 ```
 
 ## Usage
 
 ```typescript
-import { GnuBgHints } from '@nodots/gnubg-hints';
-import type { BackgammonBoard } from '@nodots-llc/backgammon-types';
+import { GnuBgHints } from '@nodots-llc/gnubg-hints'
+import type { BackgammonBoard } from '@nodots-llc/backgammon-types'
 
 // Initialize the engine (one-time setup)
-await GnuBgHints.initialize();
+await GnuBgHints.initialize()
 
 // Configure evaluation settings (optional)
 GnuBgHints.configure({
-  evalPlies: 2,      // Evaluation depth
-  moveFilter: 2,     // Move filter level
-  usePruning: true,  // Use pruning networks
-});
+  evalPlies: 2, // Evaluation depth
+  moveFilter: 2, // Move filter level
+  usePruning: true, // Use pruning networks
+})
 
 // Get move hints for a position
 const hints = await GnuBgHints.getMoveHints({
@@ -42,13 +42,13 @@ const hints = await GnuBgHints.getMoveHints({
   matchLength: 7,
   crawford: false,
   jacoby: false,
-  beavers: true
-});
+  beavers: true,
+})
 
 // Get best moves with evaluations
-hints.forEach(hint => {
-  console.log(`Move: ${hint.moves}, Equity: ${hint.equity}`);
-});
+hints.forEach((hint) => {
+  console.log(`Move: ${hint.moves}, Equity: ${hint.equity}`)
+})
 
 // Get doubling decision
 const doubleHint = await GnuBgHints.getDoubleHint({
@@ -59,38 +59,13 @@ const doubleHint = await GnuBgHints.getDoubleHint({
   matchLength: 7,
   crawford: false,
   jacoby: false,
-  beavers: true
-});
+  beavers: true,
+})
 
-console.log(`Action: ${doubleHint.action}`); // "double", "no-double", "too-good"
+console.log(`Action: ${doubleHint.action}`) // "double", "no-double", "too-good"
 
 // Clean up when done
-GnuBgHints.shutdown();
-```
-
-### Creating hint requests from `@nodots-llc/backgammon-core`
-
-When working with game objects produced by `@nodots-llc/backgammon-core`, the
-package exposes a helper that converts the game state (board, cube, match
-metadata, and dice) into the `HintRequest` structure expected by the native
-addon:
-
-```typescript
-import { createHintRequestFromGame, GnuBgHints } from '@nodots/gnubg-hints';
-import type { BackgammonGame } from '@nodots-llc/backgammon-types';
-
-async function getBestMove(game: BackgammonGame) {
-  await GnuBgHints.initialize();
-
-  const hintRequest = createHintRequestFromGame(game, {
-    // Provide defaults for optional values not tracked by the core engine
-    defaultDice: [0, 0],
-    jacoby: true,
-    beavers: true
-  });
-
-  return GnuBgHints.getMoveHints(hintRequest, 5);
-}
+GnuBgHints.shutdown()
 ```
 
 ### Command line interface
@@ -108,21 +83,27 @@ gnubg-hints-cli 4HPwATDgc/ABMA [3,1]
 ## API Reference
 
 ### `GnuBgHints.initialize(weightsPath?: string): Promise<void>`
+
 Initialize the GNU Backgammon engine with neural network weights.
 
 ### `GnuBgHints.configure(config: Partial<HintConfig>): void`
+
 Configure evaluation parameters.
 
 ### `GnuBgHints.getMoveHints(request: HintRequest, maxHints?: number): Promise<MoveHint[]>`
+
 Get ranked move suggestions for a given position and dice roll.
 
 ### `GnuBgHints.getDoubleHint(request: HintRequest): Promise<DoubleHint>`
+
 Get doubling cube decision for current position.
 
 ### `GnuBgHints.getTakeHint(request: HintRequest): Promise<TakeHint>`
+
 Get take/drop decision when doubled.
 
 ### `GnuBgHints.shutdown(): void`
+
 Clean up resources and shutdown the engine.
 
 ## Types
@@ -131,31 +112,31 @@ All types are imported from `@nodots-llc/backgammon-types`:
 
 ```typescript
 interface HintRequest {
-  board: BackgammonBoard;
-  dice: [number, number];
-  cubeValue: number;
-  cubeOwner: BackgammonColor | null;
-  matchScore: [number, number];
-  matchLength: number;
-  crawford: boolean;
-  jacoby: boolean;
-  beavers: boolean;
+  board: BackgammonBoard
+  dice: [number, number]
+  cubeValue: number
+  cubeOwner: BackgammonColor | null
+  matchScore: [number, number]
+  matchLength: number
+  crawford: boolean
+  jacoby: boolean
+  beavers: boolean
 }
 
 interface MoveHint {
-  moves: BackgammonMove[];
-  evaluation: Evaluation;
-  equity: number;
-  rank: number;
-  difference: number;
+  moves: BackgammonMove[]
+  evaluation: Evaluation
+  equity: number
+  rank: number
+  difference: number
 }
 
 interface DoubleHint {
-  action: 'double' | 'no-double' | 'too-good' | 'beaver' | 'redouble';
-  takePoint: number;
-  dropPoint: number;
-  evaluation: Evaluation;
-  cubefulEquity: number;
+  action: 'double' | 'no-double' | 'too-good' | 'beaver' | 'redouble'
+  takePoint: number
+  dropPoint: number
+  evaluation: Evaluation
+  cubefulEquity: number
 }
 ```
 
@@ -195,11 +176,11 @@ npm test
 
 Benchmarks comparing subprocess vs native addon:
 
-| Operation | Subprocess | Native Addon | Improvement |
-|-----------|------------|--------------|-------------|
-| Move Hint | 125ms | 8ms | 15.6x |
-| Double Hint | 95ms | 3ms | 31.7x |
-| Take Hint | 92ms | 3ms | 30.7x |
+| Operation   | Subprocess | Native Addon | Improvement |
+| ----------- | ---------- | ------------ | ----------- |
+| Move Hint   | 125ms      | 8ms          | 15.6x       |
+| Double Hint | 95ms       | 3ms          | 31.7x       |
+| Take Hint   | 92ms       | 3ms          | 30.7x       |
 
 ## License
 
