@@ -1,0 +1,56 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+
+# Build artifacts generated locally
+build/
+*.tgz
+
+# TypeScript artifacts
+*.tsbuildinfo
+
+# Coverage reports
+coverage/
+.nyc_output/
+
+# Environment files
+.env
+.env.local
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Editor directories and swap files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+logs/
+*.log
+
+# Temporary directories
+.tmp/
+tmp/
+
+# Development-only resources
+benchmark/
+examples/
+final_integration_test/
+final_integration_test.c
+scripts/
+test/
+test_core/
+test_core.c
+test_gnubg_link/
+test_gnubg_link.c
+run_hint.js
+show_actual_output.js
+test_hint_output.js
+test_simple_position_api.js
+test_specific_position.js
+test_position_4NvgATDgc_ABMA.js
+test_position_final.js
+test_position_id.js
