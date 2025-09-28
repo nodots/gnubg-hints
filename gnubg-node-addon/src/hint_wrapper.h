@@ -32,6 +32,7 @@ struct HintRequest {
     bool jacoby;
     bool beavers;
     std::string positionId;  // Optional GNU Backgammon position ID
+    bool hasBoard = false;
 
     // Functional factory method from JS object
     static HintRequest fromJsObject(const Napi::Object& obj);
@@ -116,6 +117,7 @@ public:
                    int maxHints, const HintConfig& config);
     void Execute() override;
     void OnOK() override;
+    void OnError(const Napi::Error& error) override;
 
 private:
     HintRequest m_request;
@@ -130,6 +132,7 @@ public:
                      const HintConfig& config);
     void Execute() override;
     void OnOK() override;
+    void OnError(const Napi::Error& error) override;
 
 private:
     HintRequest m_request;
@@ -143,6 +146,7 @@ public:
                    const HintConfig& config);
     void Execute() override;
     void OnOK() override;
+    void OnError(const Napi::Error& error) override;
 
 private:
     HintRequest m_request;

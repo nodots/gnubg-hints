@@ -25,10 +25,7 @@
       ],
       "dependencies": ["<!(node -p \"require('node-addon-api').gyp\")"],
       "libraries": [
-        "-lm",
-        "<(module_root_dir)/../positionid.o",
-        "<(module_root_dir)/../eval.o",
-        "<(module_root_dir)/../util.o"
+        "-lm"
       ],
       "defines": [
         "NAPI_DISABLE_CPP_EXCEPTIONS",

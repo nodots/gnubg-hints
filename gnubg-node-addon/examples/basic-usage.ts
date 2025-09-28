@@ -1,4 +1,4 @@
-import { GnuBgHints } from '@nodots/gnubg-hints';
+import { GnuBgHints } from '@nodots-llc/gnubg-hints';
 import type {
   BackgammonBoard,
   BackgammonGame,

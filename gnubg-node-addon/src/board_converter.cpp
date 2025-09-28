@@ -38,8 +38,11 @@ namespace BoardConverter {
 
                         int player = mapToPlayer(color);
                         int pos = (player == 0) ? clockwisePos : counterPos;
+                        int mappedIndex = pos - 1;
 
-                        gnubgBoard[player][pos] = checkers.Length();
+                        if (mappedIndex >= 0 && mappedIndex < 24) {
+                            gnubgBoard[player][mappedIndex] = checkers.Length();
+                        }
                     }
                 }
             }
@@ -55,7 +58,7 @@ namespace BoardConverter {
                     Napi::Object barDir = bar.Get(direction).As<Napi::Object>();
                     if (barDir.Has("checkers")) {
                         Napi::Array checkers = barDir.Get("checkers").As<Napi::Array>();
-                        gnubgBoard[player][0] = checkers.Length(); // Bar is position 0
+                        gnubgBoard[player][24] = checkers.Length(); // Bar is index 24
                     }
                 }
             };

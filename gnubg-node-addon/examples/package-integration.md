@@ -4,14 +4,14 @@
 
 1. **Install the addon in your project:**
    ```bash
-   npm install @nodots/gnubg-hints
+   npm install @nodots-llc/gnubg-hints
    ```
 
 2. **Update your package.json dependencies:**
    ```json
    {
      "dependencies": {
-       "@nodots/gnubg-hints": "^1.0.0",
+       "@nodots-llc/gnubg-hints": "^1.0.0",
        "@nodots-llc/backgammon-types": "^1.0.0"
      }
    }
@@ -21,7 +21,7 @@
 
 ```typescript
 // In your existing game service
-import { GnuBgHints } from '@nodots/gnubg-hints';
+import { GnuBgHints } from '@nodots-llc/gnubg-hints';
 import type { BackgammonGame } from '@nodots-llc/backgammon-types';
 
 export class GameService {
@@ -74,7 +74,7 @@ export class GameService {
 ```typescript
 // api/routes/hints.ts
 import { Router } from 'express';
-import { GnuBgHints } from '@nodots/gnubg-hints';
+import { GnuBgHints } from '@nodots-llc/gnubg-hints';
 
 const router = Router();
 
@@ -141,7 +141,7 @@ export default router;
 ```typescript
 // components/HintButton.tsx
 import React, { useState } from 'react';
-import { GnuBgHints } from '@nodots/gnubg-hints';
+import { GnuBgHints } from '@nodots-llc/gnubg-hints';
 import type { BackgammonGame, BackgammonMove } from '@nodots-llc/backgammon-types';
 
 interface HintButtonProps {

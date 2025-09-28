@@ -13,13 +13,13 @@ A high-performance Node.js native addon that exposes GNU Backgammon's hint engin
 ## Installation
 
 ```bash
-npm install @nodots/gnubg-hints
+npm install @nodots-llc/gnubg-hints
 ```
 
 ## Usage
 
 ```typescript
-import { GnuBgHints } from '@nodots/gnubg-hints';
+import { GnuBgHints } from '@nodots-llc/gnubg-hints';
 import type { BackgammonBoard } from '@nodots-llc/backgammon-types';
 
 // Initialize the engine (one-time setup)
@@ -66,6 +66,18 @@ console.log(`Action: ${doubleHint.action}`); // "double", "no-double", "too-good
 
 // Clean up when done
 GnuBgHints.shutdown();
+```
+
+### Command line interface
+
+After building the project you can use the bundled CLI to retrieve the top five moves for a GNU position ID and dice roll:
+
+```bash
+npm run build
+node dist/cli.js 4HPwATDgc/ABMA 3 1
+
+# or, once published and installed globally
+gnubg-hints-cli 4HPwATDgc/ABMA [3,1]
 ```
 
 ## API Reference
