@@ -68,6 +68,31 @@ console.log(`Action: ${doubleHint.action}`); // "double", "no-double", "too-good
 GnuBgHints.shutdown();
 ```
 
+### Creating hint requests from `@nodots-llc/backgammon-core`
+
+When working with game objects produced by `@nodots-llc/backgammon-core`, the
+package exposes a helper that converts the game state (board, cube, match
+metadata, and dice) into the `HintRequest` structure expected by the native
+addon:
+
+```typescript
+import { createHintRequestFromGame, GnuBgHints } from '@nodots/gnubg-hints';
+import type { BackgammonGame } from '@nodots-llc/backgammon-types';
+
+async function getBestMove(game: BackgammonGame) {
+  await GnuBgHints.initialize();
+
+  const hintRequest = createHintRequestFromGame(game, {
+    // Provide defaults for optional values not tracked by the core engine
+    defaultDice: [0, 0],
+    jacoby: true,
+    beavers: true
+  });
+
+  return GnuBgHints.getMoveHints(hintRequest, 5);
+}
+```
+
 ### Command line interface
 
 After building the project you can use the bundled CLI to retrieve the top five moves for a GNU position ID and dice roll:
