@@ -16,6 +16,7 @@
     "test": "jest",
     "test:coverage": "jest --coverage --verbose",
     "install": "node ./bin/run-node-gyp.js rebuild",
+    "postinstall": "node ./bin/ensure-node-gyp-bin.js",
     "publish:npm": "npm publish --access public",
     "prepublishOnly": "node ./bin/run-node-gyp.js build && tsc",
     "pretest": "node ./bin/run-node-gyp.js build"
