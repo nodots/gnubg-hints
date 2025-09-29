@@ -3,6 +3,14 @@ const { spawnSync } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 
+const ensureNodeGypBin = require('./ensure-node-gyp-bin');
+
+try {
+  ensureNodeGypBin();
+} catch (error) {
+  console.warn('Unable to ensure local node-gyp binary before execution:', error);
+}
+
 function exists(filePath) {
   return Boolean(filePath && fs.existsSync(filePath));
 }
@@ -86,6 +94,10 @@ function findBundledNodeDir() {
 const NODE_VERSION = process.versions.node.replace(/^v/, '');
 
 const nodeGypScript = resolveNodeGyp();
+
+if (nodeGypScript) {
+  console.log(`[run-node-gyp] Using node-gyp from ${nodeGypScript}`);
+}
 
 if (!nodeGypScript) {
   console.error('Unable to locate node-gyp. Ensure it is installed or expose it via npm_config_node_gyp.');

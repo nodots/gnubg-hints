@@ -43,8 +43,16 @@ function ensureNodeGypBin() {
   fs.chmodSync(binPath, 0o755);
 }
 
-try {
-  ensureNodeGypBin();
-} catch (error) {
-  console.warn('Unable to ensure local node-gyp binary:', error);
+function run() {
+  try {
+    ensureNodeGypBin();
+  } catch (error) {
+    console.warn('Unable to ensure local node-gyp binary:', error);
+  }
+}
+
+module.exports = ensureNodeGypBin;
+
+if (require.main === module) {
+  run();
 }
