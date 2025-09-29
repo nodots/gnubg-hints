@@ -83,6 +83,8 @@ function findBundledNodeDir() {
   return null;
 }
 
+const NODE_VERSION = process.versions.node.replace(/^v/, '');
+
 const nodeGypScript = resolveNodeGyp();
 
 if (!nodeGypScript) {
@@ -93,9 +95,54 @@ if (!nodeGypScript) {
 const args = process.argv.slice(2);
 const [command] = args;
 
-const bundledNodeDir = findBundledNodeDir();
-if (bundledNodeDir) {
-  process.env.npm_config_nodedir = bundledNodeDir;
+function hasHeaders(candidate) {
+  if (!candidate) {
+    return false;
+  }
+
+  return exists(path.join(candidate, 'include', 'node', 'common.gypi'));
+}
+
+function resolveHeadersFromEnv() {
+  const { npm_config_nodedir: envNodeDir } = process.env;
+  return hasHeaders(envNodeDir) ? envNodeDir : null;
+}
+
+function resolveHeadersFromDevDir() {
+  const devDir = process.env.npm_config_devdir;
+  if (!devDir) {
+    return null;
+  }
+
+  const candidate = path.join(devDir, NODE_VERSION);
+  return hasHeaders(candidate) ? candidate : null;
+}
+
+function determineBundledHeaders() {
+  const bundled = findBundledNodeDir();
+  return hasHeaders(bundled) ? bundled : null;
+}
+
+function resolveHeaders() {
+  return (
+    resolveHeadersFromEnv() ||
+    resolveHeadersFromDevDir() ||
+    determineBundledHeaders()
+  );
+}
+
+function ensureDevDir() {
+  if (!process.env.npm_config_devdir) {
+    process.env.npm_config_devdir = path.join(__dirname, '..', '.node-gyp');
+  }
+
+  try {
+    fs.mkdirSync(process.env.npm_config_devdir, { recursive: true });
+  } catch (error) {
+    if (error?.code !== 'EEXIST') {
+      throw error;
+    }
+  }
 }
 
 function runNodeGyp(commandArgs) {
@@ -104,8 +151,14 @@ function runNodeGyp(commandArgs) {
   });
 }
 
-function ensureHeaders() {
-  const result = runNodeGyp(['install', '--ensure']);
+function installHeaders({ ensure = true, extraArgs = [] } = {}) {
+  const installArgs = ['install'];
+  if (ensure) {
+    installArgs.push('--ensure');
+  }
+  installArgs.push(...extraArgs);
+  const result = runNodeGyp(installArgs);
+
   if (result.status && result.status !== 0) {
     process.exit(result.status);
   }
@@ -114,6 +167,54 @@ function ensureHeaders() {
     console.error(result.error);
     process.exit(1);
   }
+}
+
+function removeStaleDevHeaders() {
+  const devDir = process.env.npm_config_devdir;
+  if (!devDir) {
+    return;
+  }
+
+  const versionDir = path.join(devDir, NODE_VERSION);
+  if (!exists(versionDir)) {
+    return;
+  }
+
+  try {
+    fs.rmSync(versionDir, { recursive: true, force: true });
+  } catch (error) {
+    console.warn(`Unable to clear stale headers at ${versionDir}:`, error);
+  }
+}
+
+function ensureHeaders() {
+  let headerDir = resolveHeaders();
+  if (headerDir) {
+    process.env.npm_config_nodedir = headerDir;
+    return;
+  }
+
+  ensureDevDir();
+  installHeaders();
+
+  headerDir = resolveHeaders();
+  if (headerDir) {
+    process.env.npm_config_nodedir = headerDir;
+    return;
+  }
+
+  removeStaleDevHeaders();
+  installHeaders({ ensure: false });
+
+  headerDir = resolveHeaders();
+  if (headerDir) {
+    process.env.npm_config_nodedir = headerDir;
+    return;
+  }
+
+  console.error('Unable to locate Node headers after running node-gyp install.');
+  console.error('You may need to set npm_config_nodedir to your Node.js installation manually.');
+  process.exit(1);
 }
 
 if (command === 'build' || command === 'rebuild') {
