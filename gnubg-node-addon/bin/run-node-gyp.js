@@ -1,36 +1,105 @@
 #!/usr/bin/env node
-const { spawnSync } = require('node:child_process');
-const fs = require('node:fs');
-const path = require('node:path');
+const { spawnSync } = require('node:child_process')
+const fs = require('node:fs')
+const path = require('node:path')
+
+function exists(filePath) {
+  return Boolean(filePath && fs.existsSync(filePath))
+}
+
+function resolveFromEnv() {
+  const candidate = process.env.npm_config_node_gyp
+  if (!candidate) {
+    return null
+  }
+
+  const resolved = path.isAbsolute(candidate)
+    ? candidate
+    : path.resolve(process.cwd(), candidate)
+
+  return exists(resolved) ? resolved : null
+}
+
+function resolveFromLocalNodeModules() {
+  let current = __dirname
+
+  while (true) {
+    const candidate = path.join(
+      current,
+      'node_modules',
+      'node-gyp',
+      'bin',
+      'node-gyp.js'
+    )
+    if (exists(candidate)) {
+      return candidate
+    }
+
+    const parent = path.dirname(current)
+    if (parent === current) {
+      return null
+    }
+
+    current = parent
+  }
+}
+
+function resolveViaRequire() {
+  try {
+    return require.resolve('node-gyp/bin/node-gyp.js')
+  } catch (error) {
+    if (error?.code !== 'MODULE_NOT_FOUND') {
+      throw error
+    }
+  }
+
+  return null
+}
 
 function resolveNodeGyp() {
-  const local = path.join(__dirname, '..', 'node_modules', 'node-gyp', 'bin', 'node-gyp.js');
-  if (fs.existsSync(local)) {
-    return local;
+  return (
+    resolveFromEnv() || resolveFromLocalNodeModules() || resolveViaRequire()
+  )
+}
+
+const nodeGypScript = resolveNodeGyp()
+
+if (!nodeGypScript) {
+  console.error(
+    'Unable to locate node-gyp. Ensure it is installed or expose it via npm_config_node_gyp.'
+  )
+  process.exit(1)
+}
+
+const args = process.argv.slice(2)
+const [command] = args
+
+function runNodeGyp(commandArgs) {
+  return spawnSync(process.execPath, [nodeGypScript, ...commandArgs], {
+    stdio: 'inherit',
+  })
+}
+
+function ensureHeaders() {
+  const result = runNodeGyp(['install', '--ensure'])
+  if (result.status && result.status !== 0) {
+    process.exit(result.status)
   }
 
-  const npmConfigNodeGyp = process.env.npm_config_node_gyp;
-  if (npmConfigNodeGyp && fs.existsSync(npmConfigNodeGyp)) {
-    return npmConfigNodeGyp;
-  }
-
-  try {
-    return require.resolve('node-gyp/bin/node-gyp.js');
-  } catch (error) {
-    console.error('Unable to locate node-gyp. Ensure node-gyp is installed or available via npm_config_node_gyp.');
-    console.error(error);
-    process.exit(1);
+  if (result.error) {
+    console.error(result.error)
+    process.exit(1)
   }
 }
 
-const nodeGypScript = resolveNodeGyp();
-const args = process.argv.slice(2);
-const result = spawnSync(process.execPath, [nodeGypScript, ...args], {
-  stdio: 'inherit',
-});
+if (command === 'build' || command === 'rebuild') {
+  ensureHeaders()
+}
+
+const result = runNodeGyp(args)
 
 if (result.error) {
-  console.error(result.error);
+  console.error(result.error)
 }
 
-process.exit(result.status ?? 1);
+process.exit(result.status ?? 0)
