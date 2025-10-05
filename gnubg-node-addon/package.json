@@ -1,6 +1,6 @@
 {
   "name": "@nodots-llc/gnubg-hints",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "GNU Backgammon hint engine for Node.js with TypeScript support",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -24,7 +24,7 @@
     "node": ">=14.0.0"
   },
   "dependencies": {
-    "@nodots-llc/backgammon-types": "^4.1.0",
+    "@nodots-llc/backgammon-types": "^4.1.1",
     "node-addon-api": "^7.0.0",
     "node-gyp": "^10.0.1"
   },
