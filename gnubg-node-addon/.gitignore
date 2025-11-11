@@ -42,6 +42,8 @@ lib/*.wd
 tmp/
 .tmp/
 
-# Native addon build artifacts
-build/Release/
-build/Debug/
+# Compiled test executables
+test_core
+test_gnubg_link
+final_integration_test
+*_test

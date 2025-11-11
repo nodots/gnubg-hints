@@ -137,3 +137,10 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# Build dependencies and generated documentation
+.deps/
+doc/*.html
+doc/*.pdf
+doc/*.info
+doc/gnubg.6
