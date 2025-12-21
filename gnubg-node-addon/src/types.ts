@@ -35,6 +35,12 @@ export type HintBoard = BackgammonBoard | SimplifiedBoard;
 export interface HintRequest {
   board: HintBoard;
   dice: [number, number];
+  /**
+   * The color of the player who is on roll. Required to correctly encode
+   * board positions - GNU BG expects player 0 to be the player on roll.
+   * When omitted, defaults to 'white' for backward compatibility.
+   */
+  activePlayerColor?: BackgammonColor;
   cubeValue: number;
   cubeOwner: BackgammonColor | null;
   matchScore: [number, number];

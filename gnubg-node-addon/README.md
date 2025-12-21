@@ -36,6 +36,7 @@ GnuBgHints.configure({
 const hints = await GnuBgHints.getMoveHints({
   board: myBoard,
   dice: [6, 1],
+  activePlayerColor: 'white', // Required: who is on roll
   cubeValue: 1,
   cubeOwner: null,
   matchScore: [0, 0],
@@ -67,6 +68,37 @@ console.log(`Action: ${doubleHint.action}`) // "double", "no-double", "too-good"
 // Clean up when done
 GnuBgHints.shutdown()
 ```
+
+### Using with BackgammonGame objects
+
+For convenience, use the `createHintRequestFromGame` helper to automatically derive all hint request fields from a game state:
+
+```typescript
+import { GnuBgHints, createHintRequestFromGame } from '@nodots-llc/gnubg-hints'
+import type { BackgammonGame } from '@nodots-llc/backgammon-types'
+
+// Initialize once
+await GnuBgHints.initialize()
+
+// Create hint request from game state
+const game: BackgammonGame = /* your game object */
+const request = createHintRequestFromGame(game, {
+  dice: [3, 1], // Override dice if needed
+})
+
+// Get hints - activePlayerColor is automatically derived from game.activePlayer.color
+const hints = await GnuBgHints.getMoveHints(request, 5)
+```
+
+### Important: The activePlayerColor Field
+
+The `activePlayerColor` field tells GNU Backgammon which player is on roll. This is critical for correct board encoding because:
+
+- GNU BG encodes positions from the perspective of the player on roll
+- Each point on a backgammon board has TWO position numbers (clockwise and counterclockwise)
+- The board must be encoded using the active player's directional perspective
+
+If `activePlayerColor` is omitted, it defaults to `'white'` for backward compatibility. However, for correct results when black is on roll, you must specify `activePlayerColor: 'black'`.
 
 ### Command line interface
 
@@ -106,6 +138,14 @@ Get take/drop decision when doubled.
 
 Clean up resources and shutdown the engine.
 
+### `createHintRequestFromGame(game: BackgammonGame, overrides?: GameHintContextOverrides): HintRequest`
+
+Helper function to create a `HintRequest` from a `BackgammonGame` object. Automatically derives:
+- `activePlayerColor` from `game.activePlayer.color`
+- `dice` from the active player's current roll
+- `cubeValue` and `cubeOwner` from `game.cube`
+- Match score and length from game metadata
+
 ## Types
 
 All types are imported from `@nodots-llc/backgammon-types`:
@@ -114,6 +154,7 @@ All types are imported from `@nodots-llc/backgammon-types`:
 interface HintRequest {
   board: BackgammonBoard
   dice: [number, number]
+  activePlayerColor?: BackgammonColor // Who is on roll (critical for correct encoding)
   cubeValue: number
   cubeOwner: BackgammonColor | null
   matchScore: [number, number]
@@ -124,11 +165,21 @@ interface HintRequest {
 }
 
 interface MoveHint {
-  moves: BackgammonMove[]
+  moves: MoveStep[]
   evaluation: Evaluation
   equity: number
   rank: number
   difference: number
+}
+
+interface MoveStep {
+  from: number           // Origin position (1-24, or 0 for bar/off)
+  to: number             // Destination position (1-24, or 0 for bar/off)
+  moveKind: 'point-to-point' | 'reenter' | 'bear-off'
+  isHit: boolean         // Whether this move hits an opponent's blot
+  player: BackgammonColor // The player making the move
+  fromContainer: 'bar' | 'point' | 'off'
+  toContainer: 'bar' | 'point' | 'off'
 }
 
 interface DoubleHint {

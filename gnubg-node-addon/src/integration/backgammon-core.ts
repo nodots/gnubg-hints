@@ -32,6 +32,12 @@ export interface GameHintContextOverrides
    * Optional match metadata when it is not embedded in the game object.
    */
   matchInfo?: MatchInfo;
+  /**
+   * Override the active player color. Defaults to game.activePlayer.color.
+   * This is critical for correct board encoding - GNU BG needs to know
+   * who is on roll to encode positions from their perspective.
+   */
+  activePlayerColor?: BackgammonColor;
 }
 
 const DEFAULT_DICE: [number, number] = [0, 0];
@@ -53,9 +59,13 @@ export function createHintRequestFromGame(
 
   const matchInfo = overrides.matchInfo ?? extractMatchInfo(game);
 
+  // Derive active player color from game state - critical for correct board encoding
+  const activePlayerColor = overrides.activePlayerColor ?? game.activePlayer?.color ?? 'white';
+
   return {
     board,
     dice,
+    activePlayerColor,
     cubeValue: overrides.cubeValue ?? deriveCubeValue(game.cube),
     cubeOwner: overrides.cubeOwner ?? deriveCubeOwner(game.cube),
     matchScore: overrides.matchScore ?? deriveMatchScore(matchInfo),
