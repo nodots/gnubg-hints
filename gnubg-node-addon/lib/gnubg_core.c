@@ -48,6 +48,15 @@ static int all_checkers_in_home(const TanBoard board) {
     return 1;
 }
 
+/* Find the highest point (largest index 0-5) with a checker in home board */
+static int highest_checker_in_home(const TanBoard board) {
+    for (int point = 5; point >= 0; --point) {
+        if (board[0][point] > 0)
+            return point;
+    }
+    return -1; /* No checkers in home */
+}
+
 static void normalise_move(addon_move *move, int pairs) {
     for (int i = pairs * 2; i < 8; ++i)
         move->anMove[i] = -1;
@@ -126,13 +135,13 @@ static void search_moves(move_buffer *buffer, const TanBoard board, const int di
         TanBoard next;
         copy_board(next, board);
 
-        int oppIndex = 23 - dest;
-        if (next[1][oppIndex] >= 2)
+        /* Check opponent at same index - both players share index space */
+        if (next[1][dest] >= 2)
             return;
 
         int hit = 0;
-        if (next[1][oppIndex] == 1) {
-            next[1][oppIndex] = 0;
+        if (next[1][dest] == 1) {
+            next[1][dest] = 0;
             next[1][24] += 1;
             hit = 1;
         }
@@ -164,17 +173,24 @@ static void search_moves(move_buffer *buffer, const TanBoard board, const int di
         if (dest < 0) {
             if (!all_checkers_in_home(board))
                 continue;
+            /* Bear-off rule: with oversized die, can only bear off from highest point.
+               If die exactly equals from+1, it's exact. If die > from+1, oversized. */
+            int highest = highest_checker_in_home(board);
+            if (from < highest) {
+                /* There's a checker on a higher point - can't bear off with oversized die */
+                continue;
+            }
             next[0][from] -= 1;
             localBorneOff += 1;
             moves[moveIndex] = from;
             moves[moveIndex + 1] = -1; /* off */
         } else {
-            int oppIndex = 23 - dest;
-            if (next[1][oppIndex] >= 2)
+            /* Check opponent at same index - both players share index space */
+            if (next[1][dest] >= 2)
                 continue;
 
-            if (next[1][oppIndex] == 1) {
-                next[1][oppIndex] = 0;
+            if (next[1][dest] == 1) {
+                next[1][dest] = 0;
                 next[1][24] += 1;
             }
 
@@ -188,15 +204,21 @@ static void search_moves(move_buffer *buffer, const TanBoard board, const int di
         generated = 1;
     }
 
-    if (!generated && depth == 0) {
-        /* No legal moves at all; record a pass */
-        addon_move candidate;
-        memset(&candidate, 0, sizeof(candidate));
-        for (int i = 0; i < 8; ++i)
-            candidate.anMove[i] = -1;
-        candidate.rScore = 0.0f;
-        candidate.rScore2 = 0.0f;
-        push_move(buffer, &candidate);
+    if (!generated) {
+        if (depth == 0) {
+            /* No legal moves at all; record a pass */
+            addon_move candidate;
+            memset(&candidate, 0, sizeof(candidate));
+            for (int i = 0; i < 8; ++i)
+                candidate.anMove[i] = -1;
+            candidate.rScore = 0.0f;
+            candidate.rScore2 = 0.0f;
+            push_move(buffer, &candidate);
+        } else {
+            /* Partial move: used some dice but can't use remaining (e.g., all checkers borne off).
+               Record the partial move as a valid move sequence. */
+            evaluate_and_store(buffer, board, depth, moves, borneOff, ctx);
+        }
     }
 }
 
