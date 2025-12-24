@@ -163,6 +163,8 @@ export class GnuBgAIPlayer {
     return {
       board: game.board,
       dice: game.activePlay?.dice || [0, 0] as [number, number],
+      activePlayerColor: currentPlayer.color,
+      activePlayerDirection: currentPlayer.direction,
       cubeValue: game.cube.value,
       cubeOwner: game.cube.owner,
       matchScore: [currentPlayer.score, opponent.score] as [number, number],

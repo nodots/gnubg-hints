@@ -61,6 +61,8 @@ async function demonstrateMoveHints(board: BackgammonBoard) {
   const hintRequest = {
     board,
     dice: diceRoll,
+    activePlayerColor: 'white' as BackgammonColor,
+    activePlayerDirection: 'clockwise' as const,
     cubeValue: 1,
     cubeOwner: null as BackgammonColor | null,
     matchScore: [0, 0] as [number, number],
@@ -95,6 +97,8 @@ async function demonstrateDoubleHints(board: BackgammonBoard) {
   const doubleRequest = {
     board,
     dice: [0, 0] as [number, number], // No dice for cube decisions
+    activePlayerColor: 'white' as BackgammonColor,
+    activePlayerDirection: 'clockwise' as const,
     cubeValue: 1,
     cubeOwner: null as BackgammonColor | null,
     matchScore: [2, 3] as [number, number],
@@ -123,6 +127,8 @@ async function demonstrateTakeHints(board: BackgammonBoard) {
   const takeRequest = {
     board,
     dice: [0, 0] as [number, number],
+    activePlayerColor: 'white' as BackgammonColor,
+    activePlayerDirection: 'clockwise' as const,
     cubeValue: 2, // Opponent has doubled
     cubeOwner: 'black' as BackgammonColor,
     matchScore: [1, 4] as [number, number],
@@ -239,6 +245,8 @@ async function integrateWithExistingGame(game: BackgammonGame) {
   const hintRequest = {
     board: game.board,
     dice: game.activePlay.dice,
+    activePlayerColor: currentPlayer.color,
+    activePlayerDirection: currentPlayer.direction,
     cubeValue: game.cube.value,
     cubeOwner: game.cube.owner,
     matchScore: [

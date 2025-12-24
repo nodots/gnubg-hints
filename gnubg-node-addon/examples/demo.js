@@ -140,6 +140,8 @@ async function runDemo() {
                 }
             },
             dice: [6, 4],
+            activePlayerColor: 'white',
+            activePlayerDirection: 'clockwise',
             cubeValue: 1,
             cubeOwner: null,
             matchScore: [0, 0],

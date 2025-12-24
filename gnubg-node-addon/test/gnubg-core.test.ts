@@ -46,6 +46,7 @@ describe('GNU Backgammon Core Integration', () => {
       const basicRequest = {
         board: createSimpleBoard(),
         dice: [3, 4] as [number, number],
+        activePlayerDirection: 'clockwise' as const,
         cubeValue: 1,
         cubeOwner: null,
         matchScore: [0, 0] as [number, number],
@@ -74,6 +75,7 @@ describe('GNU Backgammon Core Integration', () => {
       const basicRequest = {
         board: createSimpleBoard(),
         dice: [1, 1] as [number, number],
+        activePlayerDirection: 'clockwise' as const,
         cubeValue: 1,
         cubeOwner: null,
         matchScore: [0, 0] as [number, number],
@@ -94,6 +96,7 @@ describe('GNU Backgammon Core Integration', () => {
       const basicRequest = {
         board: createSimpleBoard(),
         dice: [2, 5] as [number, number],
+        activePlayerDirection: 'clockwise' as const,
         cubeValue: 2,
         cubeOwner: null,
         matchScore: [0, 0] as [number, number],
@@ -118,6 +121,7 @@ describe('GNU Backgammon Core Integration', () => {
       const invalidRequest = {
         board: null as any,
         dice: [3, 4] as [number, number],
+        activePlayerDirection: 'clockwise' as const,
         cubeValue: 1,
         cubeOwner: null,
         matchScore: [0, 0] as [number, number],
@@ -137,6 +141,7 @@ describe('GNU Backgammon Core Integration', () => {
       const request = {
         board: createSimpleBoard(),
         dice: [3, 4] as [number, number],
+        activePlayerDirection: 'clockwise' as const,
         cubeValue: 1,
         cubeOwner: null,
         matchScore: [0, 0] as [number, number],
@@ -160,6 +165,7 @@ describe('GNU Backgammon Core Integration', () => {
       const request = {
         board: createComplexBoard(),
         dice: [6, 5] as [number, number],
+        activePlayerDirection: 'clockwise' as const,
         cubeValue: 1,
         cubeOwner: null,
         matchScore: [0, 0] as [number, number],

@@ -37,6 +37,7 @@ const hints = await GnuBgHints.getMoveHints({
   board: myBoard,
   dice: [6, 1],
   activePlayerColor: 'white', // Required: who is on roll
+  activePlayerDirection: 'clockwise', // Required: direction of the player on roll
   cubeValue: 1,
   cubeOwner: null,
   matchScore: [0, 0],
@@ -54,6 +55,8 @@ hints.forEach((hint) => {
 // Get doubling decision
 const doubleHint = await GnuBgHints.getDoubleHint({
   board: myBoard,
+  activePlayerColor: 'white',
+  activePlayerDirection: 'clockwise',
   cubeValue: 1,
   cubeOwner: null,
   matchScore: [3, 5],
@@ -86,19 +89,20 @@ const request = createHintRequestFromGame(game, {
   dice: [3, 1], // Override dice if needed
 })
 
-// Get hints - activePlayerColor is automatically derived from game.activePlayer.color
+// Get hints - active player color/direction are derived from game.activePlayer
 const hints = await GnuBgHints.getMoveHints(request, 5)
 ```
 
-### Important: The activePlayerColor Field
+### Important: The activePlayerColor and activePlayerDirection Fields
 
-The `activePlayerColor` field tells GNU Backgammon which player is on roll. This is critical for correct board encoding because:
+These fields tell GNU Backgammon which player is on roll and how they move. This is critical for correct board encoding because:
 
 - GNU BG encodes positions from the perspective of the player on roll
 - Each point on a backgammon board has TWO position numbers (clockwise and counterclockwise)
-- The board must be encoded using the active player's directional perspective
+- The board must be normalized to GNU's canonical X direction
+- Match score and cube ownership are interpreted relative to the player on roll
 
-If `activePlayerColor` is omitted, it defaults to `'white'` for backward compatibility. However, for correct results when black is on roll, you must specify `activePlayerColor: 'black'`.
+Both `activePlayerColor` and `activePlayerDirection` are required for correct results.
 
 ### Command line interface
 
@@ -155,6 +159,7 @@ interface HintRequest {
   board: BackgammonBoard
   dice: [number, number]
   activePlayerColor?: BackgammonColor // Who is on roll (critical for correct encoding)
+  activePlayerDirection: BackgammonMoveDirection // Direction of the player on roll
   cubeValue: number
   cubeOwner: BackgammonColor | null
   matchScore: [number, number]

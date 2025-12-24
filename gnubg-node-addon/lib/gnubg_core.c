@@ -244,6 +244,84 @@ static void generate_move_list(move_buffer *buffer, const TanBoard board, const 
     }
 }
 
+/* ===== Position ID Functions (from GNU Backgammon positionid.c) ===== */
+
+#define L_POSITIONID 14
+
+static inline void
+positionid_addBits(unsigned char auchKey[10], unsigned int bitPos, unsigned int nBits)
+{
+    unsigned int k = bitPos / 8;
+    unsigned int r = (bitPos & 0x7);
+    unsigned int b = (((unsigned int) 0x1 << nBits) - 1) << r;
+
+    auchKey[k] |= (unsigned char) b;
+
+    if (k < 8) {
+        auchKey[k + 1] |= (unsigned char) (b >> 8);
+        auchKey[k + 2] |= (unsigned char) (b >> 16);
+    } else if (k == 8) {
+        auchKey[k + 1] |= (unsigned char) (b >> 8);
+    }
+}
+
+static void
+positionid_oldPositionKey(const TanBoard anBoard, oldpositionkey * pkey)
+{
+    unsigned int i, iBit = 0;
+    const unsigned int *j;
+
+    memset(pkey, 0, sizeof(oldpositionkey));
+
+    for (i = 0; i < 2; ++i) {
+        const unsigned int *const b = anBoard[i];
+        for (j = b; j < b + 25; ++j) {
+            const unsigned int nc = *j;
+
+            if (nc) {
+                positionid_addBits(pkey->auch, iBit, nc);
+                iBit += nc + 1;
+            } else {
+                ++iBit;
+            }
+        }
+    }
+}
+
+static char *
+positionid_oldPositionIDFromKey(const oldpositionkey * pkey)
+{
+    unsigned char const *puch = pkey->auch;
+    static char szID[L_POSITIONID + 1];
+    char *pch = szID;
+    static const char aszBase64[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    int i;
+
+    for (i = 0; i < 3; i++) {
+        *pch++ = aszBase64[puch[0] >> 2];
+        *pch++ = aszBase64[((puch[0] & 0x03) << 4) | (puch[1] >> 4)];
+        *pch++ = aszBase64[((puch[1] & 0x0F) << 2) | (puch[2] >> 6)];
+        *pch++ = aszBase64[puch[2] & 0x3F];
+
+        puch += 3;
+    }
+
+    *pch++ = aszBase64[*puch >> 2];
+    *pch++ = aszBase64[(*puch & 0x03) << 4];
+
+    *pch = 0;
+
+    return szID;
+}
+
+const char* gnubg_position_id(const TanBoard anBoard) {
+    oldpositionkey key;
+    positionid_oldPositionKey(anBoard, &key);
+    return positionid_oldPositionIDFromKey(&key);
+}
+
+/* ===== End Position ID Functions ===== */
+
 static void deduplicate_moves(move_buffer *buffer) {
     int writeIndex = 0;
     for (int i = 0; i < buffer->count; ++i) {

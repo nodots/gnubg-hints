@@ -1,4 +1,8 @@
-import type { BackgammonBoard, BackgammonColor } from '@nodots-llc/backgammon-types';
+import type {
+  BackgammonBoard,
+  BackgammonColor,
+  BackgammonMoveDirection,
+} from '@nodots-llc/backgammon-types';
 
 export type CheckerLike = {
   color?: BackgammonColor;
@@ -41,6 +45,11 @@ export interface HintRequest {
    * When omitted, defaults to 'white' for backward compatibility.
    */
   activePlayerColor?: BackgammonColor;
+  /**
+   * The movement direction of the player who is on roll.
+   * Required for canonical GNU normalization.
+   */
+  activePlayerDirection: BackgammonMoveDirection;
   cubeValue: number;
   cubeOwner: BackgammonColor | null;
   matchScore: [number, number];

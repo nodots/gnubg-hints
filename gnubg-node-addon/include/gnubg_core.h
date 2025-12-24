@@ -38,6 +38,9 @@ int gnubg_hint_take(
     void* hint_out       /* Output hint */
 );
 
+/* Get GNU Backgammon position ID (14-char string) */
+const char* gnubg_position_id(const TanBoard board);
+
 #ifdef __cplusplus
 }
 #endif

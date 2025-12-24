@@ -91,6 +91,8 @@ describe('GNU Backgammon Hints Tests', () => {
       const request: HintRequest = {
         board: createStartingBoard(),
         dice: [3, 1],
+        activePlayerColor: 'white',
+        activePlayerDirection: 'clockwise',
         cubeValue: 1,
         cubeOwner: null,
         matchScore: [0, 0],
@@ -119,6 +121,8 @@ describe('GNU Backgammon Hints Tests', () => {
       const request: HintRequest = {
         board: createStartingBoard(),
         dice: [6, 4],
+        activePlayerColor: 'white',
+        activePlayerDirection: 'clockwise',
         cubeValue: 1,
         cubeOwner: null,
         matchScore: [0, 0],
@@ -142,6 +146,8 @@ describe('GNU Backgammon Hints Tests', () => {
       const request: HintRequest = {
         board: createStartingBoard(),
         dice: [0, 0], // Before rolling
+        activePlayerColor: 'white',
+        activePlayerDirection: 'clockwise',
         cubeValue: 1,
         cubeOwner: null,
         matchScore: [0, 0],
@@ -163,6 +169,8 @@ describe('GNU Backgammon Hints Tests', () => {
       const request: HintRequest = {
         board: createStartingBoard(),
         dice: [0, 0],
+        activePlayerColor: 'white',
+        activePlayerDirection: 'clockwise',
         cubeValue: 1,
         cubeOwner: null,
         matchScore: [6, 5], // Crawford game
@@ -184,6 +192,8 @@ describe('GNU Backgammon Hints Tests', () => {
       const request: HintRequest = {
         board: createStartingBoard(),
         dice: [0, 0],
+        activePlayerColor: 'white',
+        activePlayerDirection: 'clockwise',
         cubeValue: 2,
         cubeOwner: 'white',
         matchScore: [0, 0],
@@ -214,6 +224,8 @@ describe('GNU Backgammon Hints Tests', () => {
       const request: HintRequest = {
         board: createStartingBoard(),
         dice: [3, 1],
+        activePlayerColor: 'white',
+        activePlayerDirection: 'clockwise',
         cubeValue: 1,
         cubeOwner: null,
         matchScore: [0, 0],
@@ -244,6 +256,8 @@ describe('GNU Backgammon Hints Tests', () => {
       const request: HintRequest = {
         board: createStartingBoard(),
         dice: [6, 4],
+        activePlayerColor: 'white',
+        activePlayerDirection: 'clockwise',
         cubeValue: 1,
         cubeOwner: null,
         matchScore: [0, 0],

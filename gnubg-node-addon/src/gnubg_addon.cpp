@@ -1,6 +1,10 @@
 #include <napi.h>
 #include "hint_wrapper.h"
 
+extern "C" {
+#include "gnubg_core.h"
+}
+
 namespace gnubg_addon {
 
 // Module state
@@ -126,6 +130,37 @@ Napi::Value GetTakeHint(const Napi::CallbackInfo& info) {
     return env.Undefined();
 }
 
+// Get position ID from board
+Napi::Value GetPositionId(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+
+    if (info.Length() < 1 || !info[0].IsArray()) {
+        Napi::TypeError::New(env, "Expected board array [2][25]").ThrowAsJavaScriptException();
+        return env.Null();
+    }
+
+    Napi::Array boardArr = info[0].As<Napi::Array>();
+    if (boardArr.Length() != 2) {
+        Napi::TypeError::New(env, "Board must have 2 players").ThrowAsJavaScriptException();
+        return env.Null();
+    }
+
+    TanBoard board;
+    for (int player = 0; player < 2; player++) {
+        Napi::Array playerArr = boardArr.Get(player).As<Napi::Array>();
+        if (playerArr.Length() != 25) {
+            Napi::TypeError::New(env, "Each player must have 25 positions").ThrowAsJavaScriptException();
+            return env.Null();
+        }
+        for (int pos = 0; pos < 25; pos++) {
+            board[player][pos] = playerArr.Get(pos).As<Napi::Number>().Uint32Value();
+        }
+    }
+
+    const char* positionId = gnubg_position_id(board);
+    return Napi::String::New(env, positionId);
+}
+
 // Shutdown the engine
 Napi::Value Shutdown(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
@@ -145,6 +180,7 @@ Napi::Object Init(Napi::Env env, Napi::Object exports) {
     exports.Set("getMoveHints", Napi::Function::New(env, GetMoveHints));
     exports.Set("getDoubleHint", Napi::Function::New(env, GetDoubleHint));
     exports.Set("getTakeHint", Napi::Function::New(env, GetTakeHint));
+    exports.Set("getPositionId", Napi::Function::New(env, GetPositionId));
     exports.Set("shutdown", Napi::Function::New(env, Shutdown));
 
     return exports;
