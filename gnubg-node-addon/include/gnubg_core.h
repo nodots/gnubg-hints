@@ -41,6 +41,10 @@ int gnubg_hint_take(
 /* Get GNU Backgammon position ID (14-char string) */
 const char* gnubg_position_id(const TanBoard board);
 
+/* Decode GNU Backgammon position ID to board
+ * Returns 1 on success, 0 on failure */
+int gnubg_position_from_id(TanBoard board, const char *positionId);
+
 #ifdef __cplusplus
 }
 #endif

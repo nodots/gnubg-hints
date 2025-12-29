@@ -121,6 +121,17 @@ export interface TakeHint {
 }
 
 /**
+ * Decoded board position from a position ID
+ * Index 0 = player X (clockwise in GNU BG convention)
+ * Index 1 = player O (counterclockwise in GNU BG convention)
+ * Each player has 25 values: positions 0-23 for points, 24 for bar
+ */
+export interface DecodedBoard {
+  x: number[] // X player's checkers (25 values)
+  o: number[] // O player's checkers (25 values)
+}
+
+/**
  * Configuration for the hint engine
  */
 export interface HintConfig {
@@ -186,21 +197,49 @@ export class GnuBgHints {
   }
 
   /**
-   * Get move hints directly from GNU Backgammon position ID and dice roll
+   * Get move hints directly from GNU Backgammon position ID and dice roll.
+   *
+   * IMPORTANT: Position IDs use canonical encoding (clockwise=X, counterclockwise=O).
+   * If the counterclockwise player is on roll, pass activePlayerDirection='counterclockwise'
+   * so the position can be re-encoded with the correct player on roll.
+   *
+   * @param positionId The GNU BG position ID (canonical format)
+   * @param dice The dice roll [die1, die2]
+   * @param maxHints Maximum number of hints to return (default 5)
+   * @param activePlayerDirection Direction of the player on roll (default 'clockwise')
    */
   static async getHintsFromPositionId(
     positionId: string,
     dice: [number, number],
-    maxHints: number = 5
+    maxHints: number = 5,
+    activePlayerDirection: BackgammonMoveDirection = 'clockwise'
   ): Promise<MoveHint[]> {
     if (!this.initialized) {
       throw new Error('GnuBgHints not initialized. Call initialize() first.')
     }
 
+    // Decode the position to get checker arrays
+    const decoded = this.decodePositionId(positionId)
+
+    // If counterclockwise player is on roll, we need to swap the perspective
+    // Our canonical encoding: X = clockwise, O = counterclockwise
+    // GNU BG interprets: X = player on roll, O = opponent
+    // So if counterclockwise is on roll, swap the arrays
+    let effectivePositionId = positionId
+    if (activePlayerDirection === 'counterclockwise') {
+      // Swap X and O: counterclockwise player becomes X (on roll)
+      // getPositionId expects TanBoard format: [[...x], [...o]]
+      const swappedBoard = [decoded.o, decoded.x]
+      effectivePositionId = addon.getPositionId(swappedBoard)
+      console.log('[gnubg-hints] getHintsFromPositionId: Swapped for counterclockwise player on roll')
+      console.log('[gnubg-hints]   Original posId:', positionId)
+      console.log('[gnubg-hints]   Swapped posId:', effectivePositionId)
+    }
+
     return new Promise((resolve, reject) => {
       // Create minimal request object with just position ID and dice
       const request = {
-        positionId: positionId,
+        positionId: effectivePositionId,
         dice: dice,
         cubeValue: 1,
         cubeOwner: -1,
@@ -219,6 +258,7 @@ export class GnuBgHints {
             reject(error)
             return
           }
+          // Normalization should match the effective player on roll
           const normalization: GnubgNormalization = {
             activePlayerColor: 'white',
             activePlayerDirection: GNUBG_X_DIRECTION,
@@ -410,6 +450,25 @@ export class GnuBgHints {
     if (this.initialized) {
       addon.shutdown()
       this.initialized = false
+    }
+  }
+
+/**
+   * Decode a GNU Backgammon position ID to a board array.
+   * Returns the raw decoded position where:
+   * - Index 0 (X) represents the clockwise player's perspective
+   * - Index 1 (O) represents the counterclockwise player's perspective
+   * - Positions 0-23 are board points, 24 is the bar
+   *
+   * @param positionId 14-character GNU position ID
+   * @returns Decoded board with X and O checker counts
+   * @throws Error if position ID is invalid
+   */
+  static decodePositionId(positionId: string): DecodedBoard {
+    const board: number[][] = addon.decodePositionId(positionId)
+    return {
+      x: board[0],
+      o: board[1],
     }
   }
 
