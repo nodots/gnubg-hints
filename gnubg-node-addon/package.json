@@ -1,6 +1,6 @@
 {
   "name": "@nodots-llc/gnubg-hints",
-  "version": "4.6.4-staging.0",
+  "version": "4.6.4-staging.1",
   "description": "GNU Backgammon hint engine for Node.js with TypeScript support",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -11,20 +11,21 @@
     "configure": "node ./bin/run-node-gyp.js configure",
     "build:native": "node ./bin/run-node-gyp.js build",
     "build:ts": "tsc",
-    "build": "node ./bin/run-node-gyp.js build && tsc",
-    "rebuild": "node ./bin/run-node-gyp.js rebuild && tsc",
+    "build:databases": "./scripts/generate-databases.sh",
+    "build": "npm run build:databases && node ./bin/run-node-gyp.js build && tsc",
+    "rebuild": "npm run build:databases && node ./bin/run-node-gyp.js rebuild && tsc",
     "test": "jest",
     "test:coverage": "jest --coverage --verbose",
-    "install": "node ./bin/run-node-gyp.js rebuild",
+    "install": "npm run build:databases && node ./bin/run-node-gyp.js rebuild",
     "publish:npm": "npm publish --access public",
-    "prepublishOnly": "node ./bin/run-node-gyp.js build && tsc",
+    "prepublishOnly": "npm run build:databases && node ./bin/run-node-gyp.js build && tsc",
     "pretest": "node ./bin/run-node-gyp.js build"
   },
   "engines": {
     "node": ">=14.0.0"
   },
   "dependencies": {
-    "@nodots-llc/backgammon-types": "4.6.4-staging.0",
+    "@nodots-llc/backgammon-types": "4.6.4-staging.1",
     "node-addon-api": "^7.0.0",
     "node-gyp": "^10.0.1"
   },

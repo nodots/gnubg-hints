@@ -1,4 +1,4 @@
-const { GnuBgHints } = require('../dist');
+const { GnuBgHints, MoveFilterSetting } = require('../dist');
 
 // Sample board positions for benchmarking
 const testPositions = [
@@ -58,7 +58,7 @@ async function benchmark() {
     // Configure for maximum performance
     GnuBgHints.configure({
       evalPlies: 2,
-      moveFilter: 2,
+      moveFilter: MoveFilterSetting.Normal,
       threadCount: 1,
       usePruning: true,
       noise: 0.0

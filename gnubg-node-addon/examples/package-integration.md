@@ -21,7 +21,7 @@
 
 ```typescript
 // In your existing game service
-import { GnuBgHints } from '@nodots-llc/gnubg-hints';
+import { GnuBgHints, MoveFilterSetting } from '@nodots-llc/gnubg-hints';
 import type { BackgammonGame } from '@nodots-llc/backgammon-types';
 
 export class GameService {
@@ -30,7 +30,7 @@ export class GameService {
   async initializeHints() {
     if (!this.hintsInitialized) {
       await GnuBgHints.initialize();
-      GnuBgHints.configure({ evalPlies: 2, moveFilter: 2 });
+      GnuBgHints.configure({ evalPlies: 2, moveFilter: MoveFilterSetting.Normal });
       this.hintsInitialized = true;
     }
   }

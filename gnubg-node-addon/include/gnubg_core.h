@@ -7,8 +7,11 @@ extern "C" {
 
 /* Public API for GNU Backgammon core engine */
 
-/* Initialize the engine */
-int gnubg_initialize(void);
+/* Initialize the engine with optional weights path (can be NULL/empty) */
+int gnubg_initialize(const char* weights_path);
+
+/* Configure evaluation settings */
+void gnubg_configure(int eval_plies, int move_filter, int use_pruning, double noise, int thread_count);
 
 /* Shutdown and free resources */
 void gnubg_shutdown(void);
@@ -22,6 +25,15 @@ int gnubg_hint_move(
     int dice[2],         /* Dice values */
     void* hints_out,     /* Output hints array */
     int max_hints        /* Maximum number of hints */
+);
+
+/* Get move hints with explicit cube info (NULL uses default cubeless) */
+int gnubg_hint_move_with_cube(
+    TanBoard board,      /* Board position */
+    int dice[2],         /* Dice values */
+    void* hints_out,     /* Output hints array */
+    int max_hints,       /* Maximum number of hints */
+    void* cube_info      /* Cube information (cubeinfo*) */
 );
 
 /* Get doubling decision */

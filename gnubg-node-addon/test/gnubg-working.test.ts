@@ -3,7 +3,7 @@
  * Tests the actual compiled and linked functionality
  */
 
-import { GnuBgHints } from '../src';
+import { GnuBgHints, MoveFilterSetting } from '../src';
 
 describe('GNU Backgammon Working Integration', () => {
   describe('Module Loading and Export Tests', () => {
@@ -124,7 +124,7 @@ describe('GNU Backgammon Working Integration', () => {
     it('✅ should maintain configuration state', () => {
       const testConfig = {
         evalPlies: 2,
-        moveFilter: 2,
+        moveFilter: MoveFilterSetting.Normal,
         threadCount: 1,
         usePruning: true,
         noise: 0.0
@@ -174,8 +174,8 @@ describe('GNU Backgammon Working Integration', () => {
     it('✅ should handle configuration objects efficiently', () => {
       const configs = [
         { evalPlies: 0 },
-        { evalPlies: 1, moveFilter: 0 },
-        { evalPlies: 2, moveFilter: 1, threadCount: 1 },
+        { evalPlies: 1, moveFilter: MoveFilterSetting.Tiny },
+        { evalPlies: 2, moveFilter: MoveFilterSetting.Narrow, threadCount: 1 },
         { usePruning: false },
         { noise: 0.1 }
       ];

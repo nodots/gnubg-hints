@@ -17,66 +17,11 @@ namespace gnubg_addon {
     ModuleState g_state;
 }
 
-// GNU Backgammon includes - minimal required types and functions
+// GNU Backgammon includes
 extern "C" {
-    // Basic types needed (avoiding full glib dependency)
-    typedef int gboolean;
-    #define TRUE 1
-    #define FALSE 0
-
-    // GNU Backgammon board representation
-    typedef unsigned int TanBoard[2][25];
-
-    // Basic evaluation context
-    typedef struct _evalcontext {
-        int nPlies;
-        int fCubeful;
-        int fUsePrune;
-        float rNoise;
-    } evalcontext;
-
-    // Match state structure (simplified)
-    typedef struct _matchstate {
-        TanBoard anBoard;
-        unsigned int anDice[2];
-        int fTurn;
-        int fMove;
-        int fCubeOwner;
-        int nCube;
-        int anScore[2];
-        int nMatchTo;
-        int fCrawford;
-        int fJacoby;
-    } matchstate;
-
-    // Cube info structure
-    typedef struct _cubeinfo {
-        int nCube;
-        int fCubeOwner;
-        int fMove;
-        int nMatchTo;
-        int anScore[2];
-        int fCrawford;
-        int fJacoby;
-        int fBeavers;
-    } cubeinfo;
-
-    // Simple move representation
-    typedef struct _move {
-        int anMove[8];
-        float rScore;
-        float rScore2;
-    } move;
-
-    typedef struct _movelist {
-        unsigned int cMoves;
-        unsigned int cMaxMoves;
-        int iMoveBest;
-        move *amMoves;
-    } movelist;
-
-    // Real GNU Backgammon functions from gnubg_core.h
     #include "../include/gnubg_core.h"
+    #include "../include/eval.h"
+    #include "../include/gnubg-types.h"
 }
 
 namespace {
@@ -350,7 +295,7 @@ bool HintWrapper::initialize(const std::string& weightsPath) {
     }
 
     // Initialize GNU Backgammon engine
-    int result = gnubg_initialize();
+    int result = gnubg_initialize(weightsPath.c_str());
     if (result != 0) {
         return false;
     }
@@ -369,7 +314,8 @@ void HintWrapper::shutdown() {
 
 void HintWrapper::configure(const HintConfig& config) {
     s_config = config;
-    // Configuration is now stored and applied when hints are requested
+    gnubg_configure(config.evalPlies, config.moveFilter, config.usePruning ? 1 : 0,
+                    config.noise, config.threadCount);
 }
 
 std::vector<Move> HintWrapper::getMoveHints(const HintRequest& request, int maxHints) {
@@ -386,6 +332,7 @@ std::vector<Move> HintWrapper::getMoveHints(const HintRequest& request, int maxH
     // Convert HintRequest to GNU Backgammon format
     TanBoard board;
     int dice[2] = {request.dice[0], request.dice[1]};
+    cubeinfo ci;
 
     if (request.hasBoard) {
         for (int player = 0; player < 2; player++) {
@@ -394,8 +341,13 @@ std::vector<Move> HintWrapper::getMoveHints(const HintRequest& request, int maxH
             }
         }
     } else if (!decode_position_id(request.positionId, board)) {
-        return results;
+        throw std::runtime_error("Invalid position ID");
     }
+
+    int scores[2] = {request.matchScore[0], request.matchScore[1]};
+    SetCubeInfo(&ci, request.cubeValue, request.cubeOwner, 1, request.matchLength, scores,
+                request.crawford ? 1 : 0, request.jacoby ? 1 : 0,
+                request.beavers ? 1 : 0, bgvDefault);
 
     // Get move hints from GNU Backgammon
     movelist ml;
@@ -404,23 +356,33 @@ std::vector<Move> HintWrapper::getMoveHints(const HintRequest& request, int maxH
     ml.amMoves = new move[maxHints];
 
     // Call real GNU Backgammon hint function
-    int result = gnubg_hint_move(board, dice, ml.amMoves, maxHints);
+    int result = gnubg_hint_move_with_cube(board, dice, ml.amMoves, maxHints, &ci);
     ml.cMoves = (result > 0) ? result : 0;
     if (result > 0) {
         // Convert GNU BG moves to our Move structure
         for (unsigned int i = 0; i < ml.cMoves && i < (unsigned int)maxHints; i++) {
             Move hint;
 
-            // Convert anMove array to move steps
-            for (int j = 0; j < 8; j += 2) {
-                if (ml.amMoves[i].anMove[j] >= 0) {
-                    std::array<int, 2> step = {ml.amMoves[i].anMove[j], ml.amMoves[i].anMove[j+1]};
-                    hint.steps.push_back(step);
+            // Convert anMove array to move steps (use cMoves to avoid stale entries)
+            const int stepCount = std::min<int>(ml.amMoves[i].cMoves, 4);
+            for (int j = 0; j < stepCount; j++) {
+                const int from = ml.amMoves[i].anMove[j * 2];
+                const int to = ml.amMoves[i].anMove[j * 2 + 1];
+                if (from < 0) {
+                    break;
                 }
+                std::array<int, 2> step = {from, to};
+                hint.steps.push_back(step);
             }
 
             // Set evaluation data
-            hint.eval.equity = ml.amMoves[i].rScore;
+            hint.eval.win = ml.amMoves[i].arEvalMove[OUTPUT_WIN];
+            hint.eval.winGammon = ml.amMoves[i].arEvalMove[OUTPUT_WINGAMMON];
+            hint.eval.winBackgammon = ml.amMoves[i].arEvalMove[OUTPUT_WINBACKGAMMON];
+            hint.eval.loseGammon = ml.amMoves[i].arEvalMove[OUTPUT_LOSEGAMMON];
+            hint.eval.loseBackgammon = ml.amMoves[i].arEvalMove[OUTPUT_LOSEBACKGAMMON];
+            hint.eval.equity = ml.amMoves[i].arEvalMove[OUTPUT_EQUITY];
+            hint.eval.cubefulEquity = ml.amMoves[i].arEvalMove[OUTPUT_CUBEFUL_EQUITY];
             hint.equity = ml.amMoves[i].rScore;
             hint.rank = i + 1;
 
@@ -468,29 +430,48 @@ DoubleHint HintWrapper::getDoubleHint(const HintRequest& request) {
         throw std::runtime_error("Failed to decode position ID");
     }
 
-    // Set up cube info
-    ci.nCube = request.cubeValue;
-    ci.fCubeOwner = request.cubeOwner;
-    ci.nMatchTo = request.matchLength;
-    ci.anScore[0] = request.matchScore[0];
-    ci.anScore[1] = request.matchScore[1];
-    ci.fCrawford = request.crawford ? TRUE : FALSE;
-    ci.fJacoby = request.jacoby ? TRUE : FALSE;
-    ci.fBeavers = request.beavers ? TRUE : FALSE;
+    int scores[2] = {request.matchScore[0], request.matchScore[1]};
+    SetCubeInfo(&ci, request.cubeValue, request.cubeOwner, 0, request.matchLength, scores,
+                request.crawford ? 1 : 0, request.jacoby ? 1 : 0,
+                request.beavers ? 1 : 0, bgvDefault);
 
     // Get double hint from GNU Backgammon
     float equity = 0.0f;
     int gnubgResult = gnubg_hint_double(board, &ci, &equity);
 
-    if (gnubgResult == 0) {
-        // Determine action based on GNU BG evaluation
-        auto determineAction = [](double eq) -> std::string {
-            if (eq > 1.0) return "too-good";
-            if (eq > 0.5) return "double";
-            return "no-double";
+    if (gnubgResult >= 0) {
+        auto determineAction = [](int decision) -> std::string {
+            switch (decision) {
+                case DOUBLE_TAKE:
+                case DOUBLE_PASS:
+                case OPTIONAL_DOUBLE_TAKE:
+                case OPTIONAL_DOUBLE_PASS:
+                    return "double";
+                case REDOUBLE_TAKE:
+                case REDOUBLE_PASS:
+                case OPTIONAL_REDOUBLE_TAKE:
+                case OPTIONAL_REDOUBLE_PASS:
+                    return "redouble";
+                case TOOGOOD_TAKE:
+                case TOOGOOD_PASS:
+                case TOOGOODRE_TAKE:
+                case TOOGOODRE_PASS:
+                    return "too-good";
+                case DOUBLE_BEAVER:
+                case NODOUBLE_BEAVER:
+                case OPTIONAL_DOUBLE_BEAVER:
+                    return "beaver";
+                case NODOUBLE_TAKE:
+                case NODOUBLE_DEADCUBE:
+                case NO_REDOUBLE_TAKE:
+                case NO_REDOUBLE_DEADCUBE:
+                case NO_REDOUBLE_BEAVER:
+                default:
+                    return "no-double";
+            }
         };
 
-        result.action = determineAction(equity);
+        result.action = determineAction(gnubgResult);
         result.eval.equity = equity;
         result.cubefulEquity = equity;
     } else {
@@ -535,30 +516,38 @@ TakeHint HintWrapper::getTakeHint(const HintRequest& request) {
         throw std::runtime_error("Failed to decode position ID");
     }
 
-    // Set up cube info
-    ci.nCube = request.cubeValue;
-    ci.fCubeOwner = request.cubeOwner;
-    ci.nMatchTo = request.matchLength;
-    ci.anScore[0] = request.matchScore[0];
-    ci.anScore[1] = request.matchScore[1];
-    ci.fCrawford = request.crawford ? TRUE : FALSE;
-    ci.fJacoby = request.jacoby ? TRUE : FALSE;
-    ci.fBeavers = request.beavers ? TRUE : FALSE;
+    int scores[2] = {request.matchScore[0], request.matchScore[1]};
+    SetCubeInfo(&ci, request.cubeValue, request.cubeOwner, 0, request.matchLength, scores,
+                request.crawford ? 1 : 0, request.jacoby ? 1 : 0,
+                request.beavers ? 1 : 0, bgvDefault);
 
     // Get take hint from GNU Backgammon
-    float takeEquity = 0.0f, dropEquity = -1.0f;
-    int gnubgResult = gnubg_hint_take(board, &ci, &takeEquity);
+    float equities[2] = {0.0f, -1.0f};
+    int gnubgResult = gnubg_hint_take(board, &ci, equities);
 
-    if (gnubgResult == 0) {
-        // Determine action based on equity comparison
-        auto determineAction = [](double take, double drop) -> std::string {
-            return take > drop ? "take" : "drop";
+    if (gnubgResult >= 0) {
+        auto determineAction = [](int decision, double take, double drop) -> std::string {
+            switch (decision) {
+                case DOUBLE_BEAVER:
+                case NODOUBLE_BEAVER:
+                case OPTIONAL_DOUBLE_BEAVER:
+                    return "beaver";
+                case DOUBLE_PASS:
+                case REDOUBLE_PASS:
+                case TOOGOOD_PASS:
+                case TOOGOODRE_PASS:
+                case OPTIONAL_DOUBLE_PASS:
+                case OPTIONAL_REDOUBLE_PASS:
+                    return "drop";
+                default:
+                    return take > drop ? "take" : "drop";
+            }
         };
 
-        result.action = determineAction(takeEquity, dropEquity);
-        result.takeEquity = takeEquity;
-        result.dropEquity = dropEquity;
-        result.eval.equity = takeEquity;
+        result.action = determineAction(gnubgResult, equities[0], equities[1]);
+        result.takeEquity = equities[0];
+        result.dropEquity = equities[1];
+        result.eval.equity = equities[0];
     } else {
         result.action = "drop";
         result.takeEquity = -2.0;

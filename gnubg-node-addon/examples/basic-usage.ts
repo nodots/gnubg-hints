@@ -1,4 +1,4 @@
-import { GnuBgHints } from '@nodots-llc/gnubg-hints';
+import { GnuBgHints, MoveFilterSetting } from '@nodots-llc/gnubg-hints';
 import type {
   BackgammonBoard,
   BackgammonGame,
@@ -23,7 +23,7 @@ async function demonstrateHints() {
     // 2. Configure evaluation settings (optional)
     GnuBgHints.configure({
       evalPlies: 2,      // Evaluation depth (0-3, higher = slower but better)
-      moveFilter: 2,     // Move filter level (0-4, higher = more moves)
+      moveFilter: MoveFilterSetting.Normal, // Move filter level
       usePruning: true,  // Use pruning networks for speed
       noise: 0.0        // Deterministic evaluation (0.0) vs random (0.1)
     });

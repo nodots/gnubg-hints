@@ -1,11 +1,12 @@
 #include "include/gnubg_core.h"
+#include "include/eval.h"
 #include <stdio.h>
 
 int main() {
     printf("Testing GNU Backgammon core extraction...\n");
 
     // Test initialization
-    if (gnubg_initialize() != 0) {
+    if (gnubg_initialize("../gnubg.weights") != 0) {
         printf("Failed to initialize GNU Backgammon core\n");
         return 1;
     }
@@ -28,9 +29,16 @@ int main() {
     // Test hint functions
     printf("\n--- Testing Hint Functions ---\n");
 
-    gnubg_hint_move(board, dice, NULL, 5);
-    gnubg_hint_double(board, NULL, NULL);
-    gnubg_hint_take(board, NULL, NULL);
+    move moves[5];
+    cubeinfo ci;
+    int scores[2] = {0, 0};
+    SetCubeInfo(&ci, 1, -1, 0, 0, scores, 0, 0, 0, bgvDefault);
+    float take_drop[2] = {0.0f, 0.0f};
+    float equity = 0.0f;
+
+    gnubg_hint_move(board, dice, moves, 5);
+    gnubg_hint_double(board, &ci, &equity);
+    gnubg_hint_take(board, &ci, take_drop);
 
     // Test shutdown
     gnubg_shutdown();

@@ -1,3 +1,4 @@
+import path from 'path'
 import {
   BackgammonBoard,
   BackgammonColor,
@@ -35,9 +36,20 @@ export type HintBoard = BackgammonBoard | SimplifiedBoard
 
 // Native addon binding
 const addon = require('../build/Release/gnubg_hints.node')
+const DEFAULT_WEIGHTS_PATH =
+  process.env.GNUBG_WEIGHTS_PATH ||
+  path.resolve(__dirname, '..', '..', 'gnubg.weights')
 
 // Canonical GNU orientation: player X moves in this direction in Nodots terms.
 const GNUBG_X_DIRECTION: BackgammonMoveDirection = 'clockwise'
+
+export enum MoveFilterSetting {
+  Tiny = 0,
+  Narrow = 1,
+  Normal = 2,
+  Large = 3,
+  Huge = 4,
+}
 
 /**
  * Request structure for hint evaluation
@@ -136,7 +148,7 @@ export interface DecodedBoard {
  */
 export interface HintConfig {
   evalPlies?: number // Evaluation depth (0-3)
-  moveFilter?: number // Move filter level (0-4)
+  moveFilter?: MoveFilterSetting // Move filter level (Tiny..Huge)
   threadCount?: number // Number of threads for evaluation
   usePruning?: boolean // Use pruning neural networks
   noise?: number // Evaluation noise (0.0 = deterministic)
@@ -162,7 +174,7 @@ export class GnuBgHints {
   private static initialized = false
   private static config: HintConfig = {
     evalPlies: 2,
-    moveFilter: 2,
+    moveFilter: MoveFilterSetting.Normal,
     threadCount: 1,
     usePruning: true,
     noise: 0.0,
@@ -177,7 +189,7 @@ export class GnuBgHints {
     }
 
     return new Promise((resolve, reject) => {
-      addon.initialize(weightsPath || '', (err: Error | null) => {
+      addon.initialize(weightsPath || DEFAULT_WEIGHTS_PATH, (err: Error | null) => {
         if (err) {
           reject(err)
         } else {
@@ -207,31 +219,36 @@ export class GnuBgHints {
    * @param dice The dice roll [die1, die2]
    * @param maxHints Maximum number of hints to return (default 5)
    * @param activePlayerDirection Direction of the player on roll (default 'clockwise')
+   * @param activePlayerColor Color of the player on roll (optional, used for hint normalization)
    */
   static async getHintsFromPositionId(
     positionId: string,
     dice: [number, number],
     maxHints: number = 5,
-    activePlayerDirection: BackgammonMoveDirection = 'clockwise'
+    activePlayerDirection: BackgammonMoveDirection = 'clockwise',
+    activePlayerColor?: BackgammonColor
   ): Promise<MoveHint[]> {
     if (!this.initialized) {
       throw new Error('GnuBgHints not initialized. Call initialize() first.')
+    }
+    if (typeof positionId !== 'string' || positionId.length !== 14) {
+      throw new Error('Invalid position ID')
     }
 
     // Decode the position to get checker arrays
     const decoded = this.decodePositionId(positionId)
 
-    // If counterclockwise player is on roll, we need to swap the perspective
+    // If clockwise player is on roll, we need to swap the perspective
     // Our canonical encoding: X = clockwise, O = counterclockwise
-    // GNU BG interprets: X = player on roll, O = opponent
-    // So if counterclockwise is on roll, swap the arrays
+    // GNU BG hint core expects player-on-roll in index 1 (O)
+    // So if clockwise is on roll, swap the arrays to move them to index 1
     let effectivePositionId = positionId
-    if (activePlayerDirection === 'counterclockwise') {
-      // Swap X and O: counterclockwise player becomes X (on roll)
+    if (activePlayerDirection === 'clockwise') {
+      // Swap X and O: clockwise player moves to O (index 1, on roll)
       // getPositionId expects TanBoard format: [[...x], [...o]]
       const swappedBoard = [decoded.o, decoded.x]
       effectivePositionId = addon.getPositionId(swappedBoard)
-      console.log('[gnubg-hints] getHintsFromPositionId: Swapped for counterclockwise player on roll')
+      console.log('[gnubg-hints] getHintsFromPositionId: Swapped for clockwise player on roll')
       console.log('[gnubg-hints]   Original posId:', positionId)
       console.log('[gnubg-hints]   Swapped posId:', effectivePositionId)
     }
@@ -260,8 +277,8 @@ export class GnuBgHints {
           }
           // Normalization should match the effective player on roll
           const normalization: GnubgNormalization = {
-            activePlayerColor: 'white',
-            activePlayerDirection: GNUBG_X_DIRECTION,
+            activePlayerColor: activePlayerColor ?? 'white',
+            activePlayerDirection,
             boardReversed: false,
           }
           resolve(this.convertHintsFromGnuBg(results, undefined, normalization))
@@ -640,7 +657,7 @@ export class GnuBgHints {
 
   /**
    * Convert BackgammonBoard to GNU Backgammon format (2D array)
-   * GNU BG uses: [2][25] array where [0] is player on roll (X), [1] is opponent (O)
+   * GNU BG uses: [2][25] array where [1] is player on roll, [0] is opponent
    * Indices 0-23 map to physical board points 1-24; index 24 stores the bar.
    */
   private static convertBoardToGnuBg(
@@ -655,7 +672,9 @@ export class GnuBgHints {
 
     const counts = this.buildPhysicalCounts(board)
     const rollIsWhite = activePlayerColor === 'white'
-    const boardReversed = activePlayerDirection !== GNUBG_X_DIRECTION
+    const opponentColor = rollIsWhite ? 'black' : 'white'
+    const opponentDirection =
+      activePlayerDirection === 'clockwise' ? 'counterclockwise' : 'clockwise'
 
     // DIAGNOSTIC: Log physical counts for debugging
     if (process.env.NDBG_AI_TRACE === '1') {
@@ -664,7 +683,6 @@ export class GnuBgHints {
         .filter((p) => p.white > 0 || p.black > 0)
       console.log('[gnubg-hints][TRACE] buildPhysicalCounts result:', {
         rollIsWhite,
-        boardReversed,
         activePlayerColor,
         activePlayerDirection,
         nonZeroPoints,
@@ -672,32 +690,37 @@ export class GnuBgHints {
       })
     }
 
-    // Build separate checker arrays for X and O in physical clockwise order (index 0-23)
-    const xCheckers = counts.points.map((p) =>
+    // Build checker arrays in physical clockwise order (index 0-23)
+    const activePhysical = counts.points.map((p) =>
       rollIsWhite ? p.white : p.black
     )
-    const oCheckers = counts.points.map((p) =>
-      rollIsWhite ? p.black : p.white
+    const opponentPhysical = counts.points.map((p) =>
+      opponentColor === 'white' ? p.white : p.black
     )
 
-    // GNU BG uses same coordinate system (X's perspective) for BOTH arrays
-    // GNU checks blocking with: if (next[1][dest] >= 2) - same index space
-    // When active player moves counterclockwise, reverse BOTH arrays to align with GNU's clockwise=X convention
-    const xNormalized = boardReversed ? xCheckers.slice().reverse() : xCheckers
-    const oNormalized = boardReversed ? oCheckers.slice().reverse() : oCheckers
+    // GNU BG expects each player array in their own perspective.
+    // Player on roll (index 1) uses their movement direction as-is.
+    const activeNormalized =
+      activePlayerDirection === 'clockwise'
+        ? activePhysical
+        : activePhysical.slice().reverse()
+    const opponentNormalized =
+      opponentDirection === 'clockwise'
+        ? opponentPhysical
+        : opponentPhysical.slice().reverse()
 
-    xNormalized.forEach((count, i) => {
+    opponentNormalized.forEach((count, i) => {
       gnubgBoard[0][i] = count
     })
-    oNormalized.forEach((count, i) => {
+    activeNormalized.forEach((count, i) => {
       gnubgBoard[1][i] = count
     })
 
-    // Bar: X's bar checkers, O's bar checkers
-    const barX = rollIsWhite ? counts.bar.white : counts.bar.black
-    const barO = rollIsWhite ? counts.bar.black : counts.bar.white
-    gnubgBoard[0][24] = barX
-    gnubgBoard[1][24] = barO
+    // Bar: active player's bar checkers, opponent's bar checkers
+    const barActive = rollIsWhite ? counts.bar.white : counts.bar.black
+    const barOpponent = rollIsWhite ? counts.bar.black : counts.bar.white
+    gnubgBoard[1][24] = barActive
+    gnubgBoard[0][24] = barOpponent
 
     // DIAGNOSTIC: Log final gnubgBoard for debugging
     if (process.env.NDBG_AI_TRACE === '1') {
@@ -709,7 +732,7 @@ export class GnuBgHints {
         .filter((p) => p.count > 0)
       const xTotal = gnubgBoard[0].reduce((a, b) => a + b, 0)
       const oTotal = gnubgBoard[1].reduce((a, b) => a + b, 0)
-      console.log(`[gnubg-hints][TRACE] gnubgBoard: xTotal=${xTotal}, oTotal=${oTotal}, boardReversed=${boardReversed}, rollIsWhite=${rollIsWhite}`)
+      console.log(`[gnubg-hints][TRACE] gnubgBoard: xTotal=${xTotal}, oTotal=${oTotal}, rollIsWhite=${rollIsWhite}`)
       console.log(`[gnubg-hints][TRACE] X: ${JSON.stringify(xNonZero)}`)
       console.log(`[gnubg-hints][TRACE] O: ${JSON.stringify(oNonZero)}`)
     }
@@ -719,7 +742,7 @@ export class GnuBgHints {
       normalization: {
         activePlayerColor,
         activePlayerDirection,
-        boardReversed,
+        boardReversed: false,
       },
     }
   }
@@ -731,9 +754,9 @@ export class GnuBgHints {
     const whiteScore = matchScore[0] ?? 0
     const blackScore = matchScore[1] ?? 0
     if (activePlayerColor === 'black') {
-      return [blackScore, whiteScore]
+      return [whiteScore, blackScore]
     }
-    return [whiteScore, blackScore]
+    return [blackScore, whiteScore]
   }
 
   private static normalizeCubeOwner(
@@ -743,7 +766,7 @@ export class GnuBgHints {
     if (!cubeOwner) {
       return -1
     }
-    return cubeOwner === activePlayerColor ? 0 : 1
+    return cubeOwner === activePlayerColor ? 1 : 0
   }
 
   /**
@@ -847,10 +870,10 @@ export class GnuBgHints {
       return 0
     }
 
-    // GNU hints return coordinates from X's (player on roll) perspective
-    // In convertBoardToGnuBg, we encode X's checkers at their directional positions:
-    //   gnubgBoard[0][i] = X's checkers at X's (i+1) point
-    // So GNU index i corresponds directly to X's (i+1) point in their direction
+    // GNU hints return coordinates from the player-on-roll perspective.
+    // We encode the active player's checkers at their directional positions:
+    //   gnubgBoard[1][i] = active player's checkers at their (i+1) point
+    // So GNU index i corresponds directly to the active player's (i+1) point
     // No conversion needed - just add 1 to convert from 0-based to 1-based
     return index + 1
   }
