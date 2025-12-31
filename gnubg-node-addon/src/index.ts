@@ -749,9 +749,9 @@ export class GnuBgHints {
     const whiteScore = matchScore[0] ?? 0
     const blackScore = matchScore[1] ?? 0
     if (activePlayerColor === 'black') {
-      return [blackScore, whiteScore]
+      return [whiteScore, blackScore]
     }
-    return [whiteScore, blackScore]
+    return [blackScore, whiteScore]
   }
 
   private static normalizeCubeOwner(
@@ -761,7 +761,7 @@ export class GnuBgHints {
     if (!cubeOwner) {
       return -1
     }
-    return cubeOwner === activePlayerColor ? 0 : 1
+    return cubeOwner === activePlayerColor ? 1 : 0
   }
 
   /**

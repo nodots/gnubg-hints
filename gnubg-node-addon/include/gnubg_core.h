@@ -27,6 +27,15 @@ int gnubg_hint_move(
     int max_hints        /* Maximum number of hints */
 );
 
+/* Get move hints with explicit cube info (NULL uses default cubeless) */
+int gnubg_hint_move_with_cube(
+    TanBoard board,      /* Board position */
+    int dice[2],         /* Dice values */
+    void* hints_out,     /* Output hints array */
+    int max_hints,       /* Maximum number of hints */
+    void* cube_info      /* Cube information (cubeinfo*) */
+);
+
 /* Get doubling decision */
 int gnubg_hint_double(
     TanBoard board,      /* Board position */

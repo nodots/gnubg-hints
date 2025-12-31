@@ -122,7 +122,7 @@ void gnubg_shutdown(void) {
     g_initialized = 0;
 }
 
-int gnubg_hint_move(TanBoard board, int dice[2], void *hints_out, int max_hints) {
+int gnubg_hint_move_with_cube(TanBoard board, int dice[2], void *hints_out, int max_hints, void *cube_info) {
     if (!g_initialized || !hints_out || max_hints <= 0)
         return -1;
 
@@ -132,8 +132,12 @@ int gnubg_hint_move(TanBoard board, int dice[2], void *hints_out, int max_hints)
     memset(&ml, 0, sizeof(ml));
 
     cubeinfo ci = ciCubeless;
-    ci.fMove = 0;
-    ci.bgv = bgvDefault;
+    if (cube_info) {
+        ci = *(cubeinfo *)cube_info;
+    } else {
+        ci.fMove = 1;
+        ci.bgv = bgvDefault;
+    }
 
     evalcontext ec = g_eval_context;
     movefilter filters[MAX_FILTER_PLIES][MAX_FILTER_PLIES];
@@ -155,6 +159,10 @@ int gnubg_hint_move(TanBoard board, int dice[2], void *hints_out, int max_hints)
 
     g_free(ml.amMoves);
     return copy_count;
+}
+
+int gnubg_hint_move(TanBoard board, int dice[2], void *hints_out, int max_hints) {
+    return gnubg_hint_move_with_cube(board, dice, hints_out, max_hints, NULL);
 }
 
 static int evaluate_cube(const TanBoard board, cubeinfo *pci, float *out_no_double,

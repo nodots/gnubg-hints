@@ -332,6 +332,7 @@ std::vector<Move> HintWrapper::getMoveHints(const HintRequest& request, int maxH
     // Convert HintRequest to GNU Backgammon format
     TanBoard board;
     int dice[2] = {request.dice[0], request.dice[1]};
+    cubeinfo ci;
 
     if (request.hasBoard) {
         for (int player = 0; player < 2; player++) {
@@ -343,6 +344,11 @@ std::vector<Move> HintWrapper::getMoveHints(const HintRequest& request, int maxH
         throw std::runtime_error("Invalid position ID");
     }
 
+    int scores[2] = {request.matchScore[0], request.matchScore[1]};
+    SetCubeInfo(&ci, request.cubeValue, request.cubeOwner, 1, request.matchLength, scores,
+                request.crawford ? 1 : 0, request.jacoby ? 1 : 0,
+                request.beavers ? 1 : 0, bgvDefault);
+
     // Get move hints from GNU Backgammon
     movelist ml;
     ml.cMoves = 0;
@@ -350,23 +356,33 @@ std::vector<Move> HintWrapper::getMoveHints(const HintRequest& request, int maxH
     ml.amMoves = new move[maxHints];
 
     // Call real GNU Backgammon hint function
-    int result = gnubg_hint_move(board, dice, ml.amMoves, maxHints);
+    int result = gnubg_hint_move_with_cube(board, dice, ml.amMoves, maxHints, &ci);
     ml.cMoves = (result > 0) ? result : 0;
     if (result > 0) {
         // Convert GNU BG moves to our Move structure
         for (unsigned int i = 0; i < ml.cMoves && i < (unsigned int)maxHints; i++) {
             Move hint;
 
-            // Convert anMove array to move steps
-            for (int j = 0; j < 8; j += 2) {
-                if (ml.amMoves[i].anMove[j] >= 0) {
-                    std::array<int, 2> step = {ml.amMoves[i].anMove[j], ml.amMoves[i].anMove[j+1]};
-                    hint.steps.push_back(step);
+            // Convert anMove array to move steps (use cMoves to avoid stale entries)
+            const int stepCount = std::min<int>(ml.amMoves[i].cMoves, 4);
+            for (int j = 0; j < stepCount; j++) {
+                const int from = ml.amMoves[i].anMove[j * 2];
+                const int to = ml.amMoves[i].anMove[j * 2 + 1];
+                if (from < 0) {
+                    break;
                 }
+                std::array<int, 2> step = {from, to};
+                hint.steps.push_back(step);
             }
 
             // Set evaluation data
-            hint.eval.equity = ml.amMoves[i].rScore;
+            hint.eval.win = ml.amMoves[i].arEvalMove[OUTPUT_WIN];
+            hint.eval.winGammon = ml.amMoves[i].arEvalMove[OUTPUT_WINGAMMON];
+            hint.eval.winBackgammon = ml.amMoves[i].arEvalMove[OUTPUT_WINBACKGAMMON];
+            hint.eval.loseGammon = ml.amMoves[i].arEvalMove[OUTPUT_LOSEGAMMON];
+            hint.eval.loseBackgammon = ml.amMoves[i].arEvalMove[OUTPUT_LOSEBACKGAMMON];
+            hint.eval.equity = ml.amMoves[i].arEvalMove[OUTPUT_EQUITY];
+            hint.eval.cubefulEquity = ml.amMoves[i].arEvalMove[OUTPUT_CUBEFUL_EQUITY];
             hint.equity = ml.amMoves[i].rScore;
             hint.rank = i + 1;
 
