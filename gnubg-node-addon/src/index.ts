@@ -219,12 +219,14 @@ export class GnuBgHints {
    * @param dice The dice roll [die1, die2]
    * @param maxHints Maximum number of hints to return (default 5)
    * @param activePlayerDirection Direction of the player on roll (default 'clockwise')
+   * @param activePlayerColor Color of the player on roll (optional, used for hint normalization)
    */
   static async getHintsFromPositionId(
     positionId: string,
     dice: [number, number],
     maxHints: number = 5,
-    activePlayerDirection: BackgammonMoveDirection = 'clockwise'
+    activePlayerDirection: BackgammonMoveDirection = 'clockwise',
+    activePlayerColor?: BackgammonColor
   ): Promise<MoveHint[]> {
     if (!this.initialized) {
       throw new Error('GnuBgHints not initialized. Call initialize() first.')
@@ -272,8 +274,8 @@ export class GnuBgHints {
           }
           // Normalization should match the effective player on roll
           const normalization: GnubgNormalization = {
-            activePlayerColor: 'white',
-            activePlayerDirection: GNUBG_X_DIRECTION,
+            activePlayerColor: activePlayerColor ?? 'white',
+            activePlayerDirection,
             boardReversed: false,
           }
           resolve(this.convertHintsFromGnuBg(results, undefined, normalization))
