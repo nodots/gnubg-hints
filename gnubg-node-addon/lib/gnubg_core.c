@@ -18,6 +18,18 @@ static evalcontext g_eval_context;
 static movefilter g_move_filter[MAX_FILTER_PLIES][MAX_FILTER_PLIES];
 int fAnalysisRunning = FALSE;
 
+static void ensure_thread_local_data(void) {
+#if defined(USE_MULTITHREAD)
+    if (!g_private_get(td.tlsItem)) {
+        TLSSetValue(td.tlsItem, (size_t) MT_CreateThreadLocalData(-1));
+    }
+#else
+    if (!td.tld) {
+        td.tld = MT_CreateThreadLocalData(-1);
+    }
+#endif
+}
+
 static int clamp_int(int value, int min_value, int max_value) {
     if (value < min_value)
         return min_value;
@@ -46,7 +58,6 @@ int gnubg_initialize(const char *weights_path) {
 
     output_initialize();
     glib_ext_init();
-    MT_InitThreads();
 
     set_data_dirs_from_weights(weights_path);
 
@@ -63,6 +74,9 @@ int gnubg_initialize(const char *weights_path) {
     char *weights_binary = BuildFilename("gnubg.wd");
 
     EvalInitialise(weights, weights_binary, FALSE, NULL);
+
+    /* EvalInitialise sets neural net sizes needed by thread-local buffers. */
+    MT_InitThreads();
 
     g_free(weights);
     g_free(weights_binary);
@@ -101,8 +115,9 @@ void gnubg_shutdown(void) {
     if (!g_initialized)
         return;
 
-    EvalShutdown();
-    MT_Close();
+    /* MT_Close/EvalShutdown crash in embedded use; skip to keep teardown safe. */
+    /* MT_Close(); */
+    /* EvalShutdown(); */
 
     g_initialized = 0;
 }
@@ -110,6 +125,8 @@ void gnubg_shutdown(void) {
 int gnubg_hint_move(TanBoard board, int dice[2], void *hints_out, int max_hints) {
     if (!g_initialized || !hints_out || max_hints <= 0)
         return -1;
+
+    ensure_thread_local_data();
 
     movelist ml;
     memset(&ml, 0, sizeof(ml));
@@ -166,6 +183,8 @@ int gnubg_hint_double(TanBoard board, void *cube_info, void *hint_out) {
     if (!g_initialized || !cube_info)
         return -1;
 
+    ensure_thread_local_data();
+
     cubeinfo ci = *(cubeinfo *)cube_info;
     float *equity_out = (float *)hint_out;
 
@@ -175,6 +194,8 @@ int gnubg_hint_double(TanBoard board, void *cube_info, void *hint_out) {
 int gnubg_hint_take(TanBoard board, void *cube_info, void *hint_out) {
     if (!g_initialized || !cube_info || !hint_out)
         return -1;
+
+    ensure_thread_local_data();
 
     cubeinfo ci = *(cubeinfo *)cube_info;
     float *equities = (float *)hint_out;

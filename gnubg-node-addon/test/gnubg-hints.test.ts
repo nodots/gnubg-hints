@@ -279,11 +279,11 @@ describe('GNU Backgammon Hints Tests', () => {
 
 // Helper function to create a starting board
 function createStartingBoard() {
-  return {
+  const board = {
     id: 'test-board',
     points: Array.from({ length: 24 }, (_, i) => ({
       position: { clockwise: i + 1, counterclockwise: 24 - i },
-      checkers: []
+      checkers: [] as Array<{ color: 'white' | 'black' }>
     })),
     bar: {
       clockwise: { checkers: [] },
@@ -294,4 +294,17 @@ function createStartingBoard() {
       counterclockwise: { checkers: [] }
     }
   };
+
+  // Starting position approximation
+  board.points[23].checkers = Array(2).fill({ color: 'white' });
+  board.points[12].checkers = Array(5).fill({ color: 'white' });
+  board.points[7].checkers = Array(3).fill({ color: 'white' });
+  board.points[5].checkers = Array(5).fill({ color: 'white' });
+
+  board.points[0].checkers = Array(2).fill({ color: 'black' });
+  board.points[11].checkers = Array(5).fill({ color: 'black' });
+  board.points[16].checkers = Array(3).fill({ color: 'black' });
+  board.points[18].checkers = Array(5).fill({ color: 'black' });
+
+  return board;
 }

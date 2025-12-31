@@ -340,7 +340,7 @@ std::vector<Move> HintWrapper::getMoveHints(const HintRequest& request, int maxH
             }
         }
     } else if (!decode_position_id(request.positionId, board)) {
-        return results;
+        throw std::runtime_error("Invalid position ID");
     }
 
     // Get move hints from GNU Backgammon
