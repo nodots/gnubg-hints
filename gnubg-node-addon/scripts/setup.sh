@@ -105,6 +105,16 @@ else
     exit 1
 fi
 
+# Generate database files
+echo ""
+echo "📊 Generating GNU Backgammon database files..."
+
+if [ -x "./scripts/generate-databases.sh" ]; then
+    ./scripts/generate-databases.sh
+else
+    echo "⚠️  Database generation script not found, skipping"
+fi
+
 # Build the addon
 echo ""
 echo "🔨 Building native addon..."
