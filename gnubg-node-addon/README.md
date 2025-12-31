@@ -19,7 +19,7 @@ npm install @nodots-llc/gnubg-hints
 ## Usage
 
 ```typescript
-import { GnuBgHints } from '@nodots-llc/gnubg-hints'
+import { GnuBgHints, MoveFilterSetting } from '@nodots-llc/gnubg-hints'
 import type { BackgammonBoard } from '@nodots-llc/backgammon-types'
 
 // Initialize the engine (one-time setup)
@@ -28,7 +28,7 @@ await GnuBgHints.initialize()
 // Configure evaluation settings (optional)
 GnuBgHints.configure({
   evalPlies: 2, // Evaluation depth
-  moveFilter: 2, // Move filter level
+  moveFilter: MoveFilterSetting.Normal, // Move filter level
   usePruning: true, // Use pruning networks
 })
 

@@ -1,4 +1,4 @@
-import { GnuBgHints } from '../src';
+import { GnuBgHints, MoveFilterSetting } from '../src';
 
 describe('GNU Backgammon Core Integration', () => {
   beforeAll(async () => {
@@ -26,7 +26,7 @@ describe('GNU Backgammon Core Integration', () => {
     it('should configure engine settings', () => {
       const config = {
         evalPlies: 2,
-        moveFilter: 1,
+        moveFilter: MoveFilterSetting.Narrow,
         threadCount: 1,
         usePruning: true,
         noise: 0.0

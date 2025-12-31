@@ -1,4 +1,4 @@
-const { GnuBgHints } = require('./dist/index.js');
+const { GnuBgHints, MoveFilterSetting } = require('./dist/index.js');
 
 async function testSpecificPosition() {
     console.log('🎯 Testing GNU Backgammon hint generation for specific position...');
@@ -12,7 +12,7 @@ async function testSpecificPosition() {
         // Configure for reasonable performance
         GnuBgHints.configure({
             evalPlies: 2,
-            moveFilter: 1,
+            moveFilter: MoveFilterSetting.Narrow,
             threadCount: 1,
             usePruning: true,
             noise: 0.0

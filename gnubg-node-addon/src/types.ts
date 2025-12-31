@@ -33,6 +33,14 @@ export interface SimplifiedBoard {
 
 export type HintBoard = BackgammonBoard | SimplifiedBoard;
 
+export enum MoveFilterSetting {
+  Tiny = 0,
+  Narrow = 1,
+  Normal = 2,
+  Large = 3,
+  Huge = 4,
+}
+
 /**
  * Request structure for hint evaluation
  */
@@ -119,7 +127,7 @@ export interface TakeHint {
  */
 export interface HintConfig {
   evalPlies?: number; // Evaluation depth (0-3)
-  moveFilter?: number; // Move filter level (0-4)
+  moveFilter?: MoveFilterSetting; // Move filter level (Tiny..Huge)
   threadCount?: number; // Number of threads for evaluation
   usePruning?: boolean; // Use pruning neural networks
   noise?: number; // Evaluation noise (0.0 = deterministic)

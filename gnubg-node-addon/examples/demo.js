@@ -7,7 +7,7 @@
  * to get move hints for backgammon positions.
  */
 
-const { GnuBgHints } = require('../dist/index.js');
+const { GnuBgHints, MoveFilterSetting } = require('../dist/index.js');
 
 // Helper function to display move notation
 function formatMove(move) {
@@ -51,7 +51,7 @@ async function runDemo() {
         console.log('2. Configuring hint engine...');
         GnuBgHints.configure({
             evalPlies: 2,      // 2-ply evaluation
-            moveFilter: 2,     // Normal move filter
+            moveFilter: MoveFilterSetting.Normal, // Normal move filter
             threadCount: 1,    // Single thread
             usePruning: true,  // Use pruning neural networks
             noise: 0.0        // No noise (deterministic)

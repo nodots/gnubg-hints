@@ -43,6 +43,14 @@ const DEFAULT_WEIGHTS_PATH =
 // Canonical GNU orientation: player X moves in this direction in Nodots terms.
 const GNUBG_X_DIRECTION: BackgammonMoveDirection = 'clockwise'
 
+export enum MoveFilterSetting {
+  Tiny = 0,
+  Narrow = 1,
+  Normal = 2,
+  Large = 3,
+  Huge = 4,
+}
+
 /**
  * Request structure for hint evaluation
  */
@@ -140,7 +148,7 @@ export interface DecodedBoard {
  */
 export interface HintConfig {
   evalPlies?: number // Evaluation depth (0-3)
-  moveFilter?: number // Move filter level (0-4)
+  moveFilter?: MoveFilterSetting // Move filter level (Tiny..Huge)
   threadCount?: number // Number of threads for evaluation
   usePruning?: boolean // Use pruning neural networks
   noise?: number // Evaluation noise (0.0 = deterministic)
@@ -166,7 +174,7 @@ export class GnuBgHints {
   private static initialized = false
   private static config: HintConfig = {
     evalPlies: 2,
-    moveFilter: 2,
+    moveFilter: MoveFilterSetting.Normal,
     threadCount: 1,
     usePruning: true,
     noise: 0.0,
