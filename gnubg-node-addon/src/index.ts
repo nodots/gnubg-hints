@@ -231,21 +231,24 @@ export class GnuBgHints {
     if (!this.initialized) {
       throw new Error('GnuBgHints not initialized. Call initialize() first.')
     }
+    if (typeof positionId !== 'string' || positionId.length !== 14) {
+      throw new Error('Invalid position ID')
+    }
 
     // Decode the position to get checker arrays
     const decoded = this.decodePositionId(positionId)
 
-    // If counterclockwise player is on roll, we need to swap the perspective
+    // If clockwise player is on roll, we need to swap the perspective
     // Our canonical encoding: X = clockwise, O = counterclockwise
-    // GNU BG interprets: X = player on roll, O = opponent
-    // So if counterclockwise is on roll, swap the arrays
+    // GNU BG hint core expects player-on-roll in index 1 (O)
+    // So if clockwise is on roll, swap the arrays to move them to index 1
     let effectivePositionId = positionId
-    if (activePlayerDirection === 'counterclockwise') {
-      // Swap X and O: counterclockwise player becomes X (on roll)
+    if (activePlayerDirection === 'clockwise') {
+      // Swap X and O: clockwise player moves to O (index 1, on roll)
       // getPositionId expects TanBoard format: [[...x], [...o]]
       const swappedBoard = [decoded.o, decoded.x]
       effectivePositionId = addon.getPositionId(swappedBoard)
-      console.log('[gnubg-hints] getHintsFromPositionId: Swapped for counterclockwise player on roll')
+      console.log('[gnubg-hints] getHintsFromPositionId: Swapped for clockwise player on roll')
       console.log('[gnubg-hints]   Original posId:', positionId)
       console.log('[gnubg-hints]   Swapped posId:', effectivePositionId)
     }
