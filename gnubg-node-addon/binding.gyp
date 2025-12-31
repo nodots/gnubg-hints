@@ -7,27 +7,54 @@
       "cflags": [
         "-O3",
         "-ffast-math",
-        "-march=native"
+        "-march=native",
+        "<!@(pkg-config --cflags glib-2.0 gthread-2.0)"
       ],
       "sources": [
         "src/gnubg_addon.cpp",
         "src/hint_wrapper.cpp",
         "src/board_converter.cpp",
         "src/gnubg_core_wrapper.cpp",
-        "lib/gnubg_core.c"
+        "lib/gnubg_core.c",
+        "lib/gnubg_stubs.c",
+        "../eval.c",
+        "../evallock.c",
+        "../positionid.c",
+        "../matchequity.c",
+        "../matchid.c",
+        "../rollout.c",
+        "../dice.c",
+        "../timer.c",
+        "../mec.c",
+        "../bearoff.c",
+        "../bearoffgammon.c",
+        "../glib-ext.c",
+        "../multithread.c",
+        "../mtsupport.c",
+        "../util.c",
+        "../lib/cache.c",
+        "../lib/inputs.c",
+        "../lib/list.c",
+        "../lib/neuralnet.c",
+        "../lib/isaac.c",
+        "../lib/md5.c",
+        "../lib/SFMT.c",
+        "../lib/output.c"
       ],
       "include_dirs": [
         "<!@(node -p \"require('node-addon-api').include\")",
+        "..",
+        "../lib",
         "include"
       ],
       "dependencies": ["<!(node -p \"require('node-addon-api').gyp\")"],
       "libraries": [
+        "<!@(pkg-config --libs glib-2.0 gthread-2.0)",
         "-lm"
       ],
       "defines": [
         "NAPI_DISABLE_CPP_EXCEPTIONS",
         "HAVE_CONFIG_H",
-        "USE_SIMD",
         "GNUBG_ADDON",
         "_GNU_SOURCE"
       ],
@@ -39,7 +66,8 @@
             "OTHER_CFLAGS": [
               "-O3",
               "-ffast-math",
-              "-march=native"
+              "-march=native",
+              "<!@(pkg-config --cflags glib-2.0 gthread-2.0)"
             ]
           }
         }],
@@ -48,25 +76,16 @@
             "-O3",
             "-ffast-math",
             "-march=native",
-            "-pthread"
+            "-pthread",
+            "<!@(pkg-config --cflags glib-2.0 gthread-2.0)"
           ],
           "libraries": [
+            "<!@(pkg-config --libs glib-2.0 gthread-2.0)",
             "-lpthread",
             "-lm"
           ]
         }],
-        ["OS=='win'", {
-          "msvs_settings": {
-            "VCCLCompilerTool": {
-              "ExceptionHandling": 1,
-              "Optimization": 3,
-              "EnableIntrinsicFunctions": "true"
-            }
-          },
-          "defines": [
-            "WIN32_LEAN_AND_MEAN"
-          ]
-        }]
+        ["OS=='win'", { }]
       ]
     }
   ]

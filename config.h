@@ -525,3 +525,33 @@
 
 /* Define as 'unsigned int' if <stddef.h> doesn't define. */
 /* #undef size_t */
+
+/* Add minimal defaults for in-process embedding */
+#ifndef AC_DATADIR
+#define AC_DATADIR "."
+#endif
+
+#ifndef AC_PKGDATADIR
+#define AC_PKGDATADIR "."
+#endif
+
+#ifndef AC_DOCDIR
+#define AC_DOCDIR "."
+#endif
+
+#ifndef LOCALEDIR
+#define LOCALEDIR "."
+#endif
+
+#ifndef _
+#define _(String) (String)
+#endif
+
+#ifndef N_
+#define N_(String) (String)
+#endif
+
+/* Disable random.org integration for embedded core */
+#ifdef LIBCURL_PROTOCOL_HTTPS
+#undef LIBCURL_PROTOCOL_HTTPS
+#endif

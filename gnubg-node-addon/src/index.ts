@@ -1,3 +1,4 @@
+import path from 'path'
 import {
   BackgammonBoard,
   BackgammonColor,
@@ -35,6 +36,9 @@ export type HintBoard = BackgammonBoard | SimplifiedBoard
 
 // Native addon binding
 const addon = require('../build/Release/gnubg_hints.node')
+const DEFAULT_WEIGHTS_PATH =
+  process.env.GNUBG_WEIGHTS_PATH ||
+  path.resolve(__dirname, '..', '..', 'gnubg.weights')
 
 // Canonical GNU orientation: player X moves in this direction in Nodots terms.
 const GNUBG_X_DIRECTION: BackgammonMoveDirection = 'clockwise'
@@ -177,7 +181,7 @@ export class GnuBgHints {
     }
 
     return new Promise((resolve, reject) => {
-      addon.initialize(weightsPath || '', (err: Error | null) => {
+      addon.initialize(weightsPath || DEFAULT_WEIGHTS_PATH, (err: Error | null) => {
         if (err) {
           reject(err)
         } else {
