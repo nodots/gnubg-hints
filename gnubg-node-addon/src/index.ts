@@ -40,6 +40,26 @@ const DEFAULT_WEIGHTS_PATH =
   process.env.GNUBG_WEIGHTS_PATH ||
   path.resolve(__dirname, '..', '..', 'gnubg.weights')
 
+type LogLevel = 'silent' | 'error' | 'warn' | 'info' | 'debug' | 'trace'
+const LOG_LEVELS: Record<LogLevel, number> = {
+  silent: 0,
+  error: 1,
+  warn: 2,
+  info: 3,
+  debug: 4,
+  trace: 5,
+}
+const envLevel = (process.env.NODOTS_LOG_LEVEL || 'info').toLowerCase() as LogLevel
+const envSilent = process.env.NODOTS_LOG_SILENT === '1'
+const activeLogLevel =
+  envSilent ? LOG_LEVELS.silent : (LOG_LEVELS[envLevel] ?? LOG_LEVELS.info)
+const logDebug = (...args: unknown[]) => {
+  if (activeLogLevel >= LOG_LEVELS.debug) console.log(...args)
+}
+const logTrace = (...args: unknown[]) => {
+  if (activeLogLevel >= LOG_LEVELS.trace) console.log(...args)
+}
+
 // Canonical GNU orientation: player X moves in this direction in Nodots terms.
 const GNUBG_X_DIRECTION: BackgammonMoveDirection = 'clockwise'
 
@@ -248,9 +268,9 @@ export class GnuBgHints {
       // getPositionId expects TanBoard format: [[...x], [...o]]
       const swappedBoard = [decoded.o, decoded.x]
       effectivePositionId = addon.getPositionId(swappedBoard)
-      console.log('[gnubg-hints] getHintsFromPositionId: Swapped for clockwise player on roll')
-      console.log('[gnubg-hints]   Original posId:', positionId)
-      console.log('[gnubg-hints]   Swapped posId:', effectivePositionId)
+      logDebug('[gnubg-hints] getHintsFromPositionId: Swapped for clockwise player on roll')
+      logDebug('[gnubg-hints]   Original posId:', positionId)
+      logDebug('[gnubg-hints]   Swapped posId:', effectivePositionId)
     }
 
     return new Promise((resolve, reject) => {
@@ -511,12 +531,12 @@ export class GnuBgHints {
     )
     const positionId = addon.getPositionId(gnubgBoard)
 
-    // DIAGNOSTIC: Always log position ID generation for debugging (unconditional)
+    // DIAGNOSTIC: Log position ID generation for debugging
     const xNonZero = gnubgBoard[0].map((c, i) => ({ idx: i, count: c })).filter(x => x.count > 0)
     const oNonZero = gnubgBoard[1].map((c, i) => ({ idx: i, count: c })).filter(x => x.count > 0)
-    console.log('[gnubg-hints] getPositionId: posId=' + positionId + ', activeColor=' + activePlayerColor + ', dir=' + activePlayerDirection)
-    console.log('[gnubg-hints] getPositionId X (cw): ' + JSON.stringify(xNonZero))
-    console.log('[gnubg-hints] getPositionId O (ccw): ' + JSON.stringify(oNonZero))
+    logDebug('[gnubg-hints] getPositionId: posId=' + positionId + ', activeColor=' + activePlayerColor + ', dir=' + activePlayerDirection)
+    logDebug('[gnubg-hints] getPositionId X (cw): ' + JSON.stringify(xNonZero))
+    logDebug('[gnubg-hints] getPositionId O (ccw): ' + JSON.stringify(oNonZero))
 
     return positionId
   }
@@ -579,7 +599,7 @@ export class GnuBgHints {
     if (process.env.NDBG_AI_TRACE === '1') {
       const xTotal = gnubgBoard[0].reduce((a, b) => a + b, 0)
       const oTotal = gnubgBoard[1].reduce((a, b) => a + b, 0)
-      console.log('[gnubg-hints][TRACE] buildCanonicalBoard: xTotal=' + xTotal + ', oTotal=' + oTotal + ', cwColor=' + clockwiseColor + ', ccwColor=' + counterclockwiseColor)
+      logTrace('[gnubg-hints][TRACE] buildCanonicalBoard: xTotal=' + xTotal + ', oTotal=' + oTotal + ', cwColor=' + clockwiseColor + ', ccwColor=' + counterclockwiseColor)
     }
 
     return gnubgBoard
@@ -681,7 +701,7 @@ export class GnuBgHints {
       const nonZeroPoints = counts.points
         .map((p, i) => ({ pos: i + 1, white: p.white, black: p.black }))
         .filter((p) => p.white > 0 || p.black > 0)
-      console.log('[gnubg-hints][TRACE] buildPhysicalCounts result:', {
+      logTrace('[gnubg-hints][TRACE] buildPhysicalCounts result:', {
         rollIsWhite,
         activePlayerColor,
         activePlayerDirection,
@@ -732,9 +752,9 @@ export class GnuBgHints {
         .filter((p) => p.count > 0)
       const xTotal = gnubgBoard[0].reduce((a, b) => a + b, 0)
       const oTotal = gnubgBoard[1].reduce((a, b) => a + b, 0)
-      console.log(`[gnubg-hints][TRACE] gnubgBoard: xTotal=${xTotal}, oTotal=${oTotal}, rollIsWhite=${rollIsWhite}`)
-      console.log(`[gnubg-hints][TRACE] X: ${JSON.stringify(xNonZero)}`)
-      console.log(`[gnubg-hints][TRACE] O: ${JSON.stringify(oNonZero)}`)
+      logTrace(`[gnubg-hints][TRACE] gnubgBoard: xTotal=${xTotal}, oTotal=${oTotal}, rollIsWhite=${rollIsWhite}`)
+      logTrace(`[gnubg-hints][TRACE] X: ${JSON.stringify(xNonZero)}`)
+      logTrace(`[gnubg-hints][TRACE] O: ${JSON.stringify(oNonZero)}`)
     }
 
     return {
@@ -811,7 +831,7 @@ export class GnuBgHints {
 
     // DIAGNOSTIC: Log raw moves before conversion
     if (process.env.NDBG_AI_TRACE === '1') {
-      console.log('[gnubg-hints][TRACE] RAW moves from GNU:', JSON.stringify(normalizedMoves), 'boardReversed=' + normalization.boardReversed)
+      logTrace('[gnubg-hints][TRACE] RAW moves from GNU:', JSON.stringify(normalizedMoves), 'boardReversed=' + normalization.boardReversed)
     }
 
     return normalizedMoves.map(([rawFrom, rawTo]) => {
