@@ -144,3 +144,7 @@ doc/*.html
 doc/*.pdf
 doc/*.info
 doc/gnubg.6
+
+# GNU Backgammon binary database files
+*.bd
+*.wd
