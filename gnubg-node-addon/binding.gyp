@@ -8,7 +8,7 @@
         "-O3",
         "-ffast-math",
         "-march=native",
-        "<!@(pkg-config --cflags glib-2.0 gthread-2.0)"
+        "<!@(pkg-config --cflags glib-2.0 gobject-2.0 gthread-2.0)"
       ],
       "sources": [
         "src/gnubg_addon.cpp",
@@ -49,7 +49,7 @@
       ],
       "dependencies": ["<!(node -p \"require('node-addon-api').gyp\")"],
       "libraries": [
-        "<!@(pkg-config --libs glib-2.0 gthread-2.0)",
+        "<!@(pkg-config --libs glib-2.0 gobject-2.0 gthread-2.0)",
         "-lm"
       ],
       "defines": [
@@ -67,7 +67,7 @@
               "-O3",
               "-ffast-math",
               "-march=native",
-              "<!@(pkg-config --cflags glib-2.0 gthread-2.0)"
+              "<!@(pkg-config --cflags glib-2.0 gobject-2.0 gthread-2.0)"
             ]
           }
         }],
@@ -77,10 +77,10 @@
             "-ffast-math",
             "-march=native",
             "-pthread",
-            "<!@(pkg-config --cflags glib-2.0 gthread-2.0)"
+            "<!@(pkg-config --cflags glib-2.0 gobject-2.0 gthread-2.0)"
           ],
           "libraries": [
-            "<!@(pkg-config --libs glib-2.0 gthread-2.0)",
+            "<!@(pkg-config --libs glib-2.0 gobject-2.0 gthread-2.0)",
             "-lpthread",
             "-lm"
           ]

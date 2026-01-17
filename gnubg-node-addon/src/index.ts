@@ -34,8 +34,25 @@ interface SimplifiedBoard {
 
 export type HintBoard = BackgammonBoard | SimplifiedBoard
 
-// Native addon binding
-const addon = require('../build/Release/gnubg_hints.node')
+// Native addon binding (lazy error to avoid crashing on unsupported platforms)
+let addonLoadError: Error | null = null
+let addon: any
+try {
+  addon = require('../build/Release/gnubg_hints.node')
+} catch (error) {
+  console.error('[gnubg-hints] native addon load failed:', error)
+  addonLoadError = new Error('gnubg-hints native addon failed to load', {
+    cause: error as Error,
+  })
+  addon = new Proxy(
+    {},
+    {
+      get() {
+        throw addonLoadError
+      },
+    }
+  )
+}
 const DEFAULT_WEIGHTS_PATH =
   process.env.GNUBG_WEIGHTS_PATH ||
   path.resolve(__dirname, '..', '..', 'gnubg.weights')
