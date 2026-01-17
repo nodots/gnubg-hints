@@ -26,7 +26,7 @@
     "node": ">=20 <21"
   },
   "dependencies": {
-    "@nodots-llc/backgammon-types": "4.6.4-staging.1",
+    "@nodots-llc/backgammon-types": "file:../../types",
     "node-addon-api": "^7.0.0",
     "node-gyp": "^10.0.1"
   },
