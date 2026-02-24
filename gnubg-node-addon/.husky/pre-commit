@@ -1,0 +1,1 @@
+NODE_PATH=gnubg-node-addon/node_modules node gnubg-node-addon/scripts/enforce-scope.js
