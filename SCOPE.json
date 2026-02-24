@@ -1,0 +1,22 @@
+{
+  "feature": "pr-calculation-gnubg",
+  "project": "gnubg-hints",
+  "branch": "feat/pr-calculation-gnubg",
+  "createdAt": "2026-02-23",
+  "allowedPaths": [
+    "gnubg-node-addon/src/**",
+    "gnubg-node-addon/include/**",
+    "gnubg-node-addon/test/**",
+    "gnubg-node-addon/lib/**"
+  ],
+  "forbiddenPaths": [
+    "gnubg-node-addon/binding.gyp",
+    "gnubg-node-addon/tsconfig.json",
+    "gnubg-node-addon/package.json",
+    "gnubg-node-addon/package-lock.json",
+    ".github/**"
+  ],
+  "dependsOn": [],
+  "blockedBy": [],
+  "estimatedScope": "Add PR calculation exposure through the N-API layer — new functions only, no changes to existing gnubg evaluation interface"
+}
