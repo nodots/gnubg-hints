@@ -11,17 +11,6 @@
         ]
       }
     ],
-    "TaskCompleted": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash .claude/hooks/check-handoff-on-complete.sh"
-          }
-        ]
-      }
-    ],
     "Stop": [
       {
         "matcher": "",
