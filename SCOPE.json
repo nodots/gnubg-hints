@@ -1,0 +1,24 @@
+{
+  "feature": "Cell 1: Expose PR calculation through gnubg N-API layer",
+  "project": "nodots-backgammon",
+  "branch": "feat/cell-1-expose-pr-calculation-through-gnubg-n-api-layer",
+  "createdAt": "2026-03-11",
+  "package": "",
+  "featureGroup": "",
+  "allowedPaths": [
+    "gnubg-node-addon/src/**",
+    "gnubg-node-addon/include/**",
+    "gnubg-node-addon/test/**",
+    "gnubg-node-addon/lib/**"
+  ],
+  "forbiddenPaths": [
+    "gnubg-node-addon/binding.gyp",
+    "gnubg-node-addon/tsconfig.json",
+    "gnubg-node-addon/package.json",
+    "gnubg-node-addon/package-lock.json",
+    ".github/**"
+  ],
+  "dependsOn": [],
+  "blockedBy": [],
+  "estimatedScope": ""
+}
