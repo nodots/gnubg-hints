@@ -132,3 +132,26 @@ export interface HintConfig {
   usePruning?: boolean; // Use pruning neural networks
   noise?: number; // Evaluation noise (0.0 = deterministic)
 }
+
+/**
+ * Rating categories from worst to best, matching GNU Backgammon analysis
+ */
+export enum RatingCategory {
+  Awful = 0,
+  Beginner = 1,
+  CasualPlayer = 2,
+  Intermediate = 3,
+  Advanced = 4,
+  Expert = 5,
+  WorldClass = 6,
+  Supernatural = 7,
+  Undefined = 8,
+}
+
+/**
+ * Result of mapping an error rate to a rating category
+ */
+export interface RatingCategoryResult {
+  category: RatingCategory;
+  name: string;
+}
