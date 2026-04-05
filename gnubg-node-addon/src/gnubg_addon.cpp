@@ -205,89 +205,6 @@ Napi::Value Shutdown(const Napi::CallbackInfo& info) {
     return env.Undefined();
 }
 
-// --- Performance Rating (PR) calculation bindings ---
-
-// Calculate relative FIBS rating from error rate and sample size
-Napi::Value GetRelativeFibsRating(const Napi::CallbackInfo& info) {
-    Napi::Env env = info.Env();
-
-    if (info.Length() < 2) {
-        Napi::TypeError::New(env, "Expected (errorRate, numGames)").ThrowAsJavaScriptException();
-        return env.Null();
-    }
-
-    float r = info[0].As<Napi::Number>().FloatValue();
-    int n = info[1].As<Napi::Number>().Int32Value();
-
-    return Napi::Number::New(env, gnubg_relative_fibs_rating(r, n));
-}
-
-// Calculate rating loss from checker play errors
-Napi::Value GetAbsoluteFibsRatingChequer(const Napi::CallbackInfo& info) {
-    Napi::Env env = info.Env();
-
-    if (info.Length() < 2) {
-        Napi::TypeError::New(env, "Expected (chequerError, numGames)").ThrowAsJavaScriptException();
-        return env.Null();
-    }
-
-    float rChequer = info[0].As<Napi::Number>().FloatValue();
-    int n = info[1].As<Napi::Number>().Int32Value();
-
-    return Napi::Number::New(env, gnubg_absolute_fibs_rating_chequer(rChequer, n));
-}
-
-// Calculate rating loss from cube decision errors
-Napi::Value GetAbsoluteFibsRatingCube(const Napi::CallbackInfo& info) {
-    Napi::Env env = info.Env();
-
-    if (info.Length() < 2) {
-        Napi::TypeError::New(env, "Expected (cubeError, numGames)").ThrowAsJavaScriptException();
-        return env.Null();
-    }
-
-    float rCube = info[0].As<Napi::Number>().FloatValue();
-    int n = info[1].As<Napi::Number>().Int32Value();
-
-    return Napi::Number::New(env, gnubg_absolute_fibs_rating_cube(rCube, n));
-}
-
-// Calculate combined absolute FIBS rating
-Napi::Value GetAbsoluteFibsRating(const Napi::CallbackInfo& info) {
-    Napi::Env env = info.Env();
-
-    if (info.Length() < 4) {
-        Napi::TypeError::New(env, "Expected (chequerError, cubeError, numGames, ratingOffset)").ThrowAsJavaScriptException();
-        return env.Null();
-    }
-
-    float rChequer = info[0].As<Napi::Number>().FloatValue();
-    float rCube = info[1].As<Napi::Number>().FloatValue();
-    int n = info[2].As<Napi::Number>().Int32Value();
-    float rOffset = info[3].As<Napi::Number>().FloatValue();
-
-    return Napi::Number::New(env, gnubg_absolute_fibs_rating(rChequer, rCube, n, rOffset));
-}
-
-// Map error rate to rating category
-Napi::Value GetRatingCategory(const Napi::CallbackInfo& info) {
-    Napi::Env env = info.Env();
-
-    if (info.Length() < 1) {
-        Napi::TypeError::New(env, "Expected (errorRate)").ThrowAsJavaScriptException();
-        return env.Null();
-    }
-
-    float rError = info[0].As<Napi::Number>().FloatValue();
-    gnubg_ratingtype rating = gnubg_get_rating(rError);
-
-    Napi::Object result = Napi::Object::New(env);
-    result.Set("category", Napi::Number::New(env, (int)rating));
-    result.Set("name", Napi::String::New(env, gnubg_rating_name(rating)));
-
-    return result;
-}
-
 // Module initialization
 Napi::Object Init(Napi::Env env, Napi::Object exports) {
     exports.Set("initialize", Napi::Function::New(env, Initialize));
@@ -298,13 +215,6 @@ Napi::Object Init(Napi::Env env, Napi::Object exports) {
     exports.Set("getPositionId", Napi::Function::New(env, GetPositionId));
     exports.Set("decodePositionId", Napi::Function::New(env, DecodePositionId));
     exports.Set("shutdown", Napi::Function::New(env, Shutdown));
-
-    // PR calculation functions (synchronous - lightweight math)
-    exports.Set("getRelativeFibsRating", Napi::Function::New(env, GetRelativeFibsRating));
-    exports.Set("getAbsoluteFibsRatingChequer", Napi::Function::New(env, GetAbsoluteFibsRatingChequer));
-    exports.Set("getAbsoluteFibsRatingCube", Napi::Function::New(env, GetAbsoluteFibsRatingCube));
-    exports.Set("getAbsoluteFibsRating", Napi::Function::New(env, GetAbsoluteFibsRating));
-    exports.Set("getRatingCategory", Napi::Function::New(env, GetRatingCategory));
 
     return exports;
 }

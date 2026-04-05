@@ -148,3 +148,5 @@ doc/gnubg.6
 # GNU Backgammon binary database files
 *.bd
 *.wd
+
+.claude/

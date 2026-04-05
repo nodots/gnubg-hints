@@ -10,7 +10,6 @@
 #include <glib.h>
 #include <string.h>
 #include <stdlib.h>
-#include <math.h>
 
 typedef int (*cfunc)(const void *, const void *);
 
@@ -221,62 +220,4 @@ int gnubg_position_from_id(TanBoard board, const char *positionId) {
         return 0;
     PositionFromID(board, positionId);
     return 1;
-}
-
-/* --- Performance Rating (PR) calculation --- */
-
-/* Rating thresholds matching gnubg analysis.c arThrsRating */
-static const float pr_rating_thresholds[] = {
-    1e38f, 0.035f, 0.026f, 0.018f, 0.012f, 0.008f, 0.005f, 0.002f
-};
-
-static const char *pr_rating_names[] = {
-    "Awful",
-    "Beginner",
-    "Casual player",
-    "Intermediate",
-    "Advanced",
-    "Expert",
-    "World class",
-    "Supernatural",
-    "Undefined"
-};
-
-float gnubg_relative_fibs_rating(float r, int n) {
-    if (n <= 0 || r <= 0.0f || r >= 1.0f)
-        return -2100.0f;
-    float x = -2000.0f / sqrtf((float)n) * log10f(1.0f / r - 1.0f);
-    return (x < -2100.0f) ? -2100.0f : x;
-}
-
-float gnubg_absolute_fibs_rating_chequer(float rChequer, int n) {
-    if (n <= 0)
-        return 0.0f;
-    return rChequer * (8798.0f + 25526.0f / (float)n);
-}
-
-float gnubg_absolute_fibs_rating_cube(float rCube, int n) {
-    if (n <= 0)
-        return 0.0f;
-    return rCube * (863.0f - 519.0f / (float)n);
-}
-
-float gnubg_absolute_fibs_rating(float rChequer, float rCube, int n, float rOffset) {
-    return rOffset - (gnubg_absolute_fibs_rating_chequer(rChequer, n)
-                      + gnubg_absolute_fibs_rating_cube(rCube, n));
-}
-
-gnubg_ratingtype gnubg_get_rating(float rError) {
-    int i;
-    for (i = GNUBG_RAT_SUPERNATURAL; i >= 0; i--) {
-        if (rError < pr_rating_thresholds[i])
-            return (gnubg_ratingtype)i;
-    }
-    return GNUBG_RAT_UNDEFINED;
-}
-
-const char *gnubg_rating_name(gnubg_ratingtype rating) {
-    if (rating < 0 || rating > GNUBG_RAT_UNDEFINED)
-        return pr_rating_names[GNUBG_RAT_UNDEFINED];
-    return pr_rating_names[rating];
 }

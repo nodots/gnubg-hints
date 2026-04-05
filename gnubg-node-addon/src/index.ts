@@ -507,74 +507,6 @@ export class GnuBgHints {
     }
   }
 
-  // --- Performance Rating (PR) calculation ---
-
-  /**
-   * Calculate relative FIBS rating from error rate and sample size.
-   * Uses the formula: -2000 / sqrt(n) * log10(1/r - 1), clamped to -2100 minimum.
-   *
-   * @param errorRate Error rate (0..1 exclusive)
-   * @param numGames Number of games in the sample
-   * @returns Relative FIBS rating value
-   */
-  static getRelativeFibsRating(errorRate: number, numGames: number): number {
-    return addon.getRelativeFibsRating(errorRate, numGames)
-  }
-
-  /**
-   * Calculate rating loss from checker play errors.
-   * Uses coefficient a2(N) = 8798 + 25526/N.
-   *
-   * @param chequerError Error per move (EMG/MWC)
-   * @param numGames Number of games in the sample
-   * @returns Rating points lost from checker play errors
-   */
-  static getAbsoluteFibsRatingChequer(chequerError: number, numGames: number): number {
-    return addon.getAbsoluteFibsRatingChequer(chequerError, numGames)
-  }
-
-  /**
-   * Calculate rating loss from cube decision errors.
-   * Uses coefficient b(N) = 863 - 519/N.
-   *
-   * @param cubeError Error per cube decision (EMG/MWC)
-   * @param numGames Number of games in the sample
-   * @returns Rating points lost from cube decision errors
-   */
-  static getAbsoluteFibsRatingCube(cubeError: number, numGames: number): number {
-    return addon.getAbsoluteFibsRatingCube(cubeError, numGames)
-  }
-
-  /**
-   * Calculate combined absolute FIBS rating estimate.
-   * Formula: rOffset - (a2(N)*chequerError + b(N)*cubeError)
-   *
-   * @param chequerError Error per move (EMG/MWC)
-   * @param cubeError Error per cube decision (EMG/MWC)
-   * @param numGames Number of games in the sample
-   * @param ratingOffset Base rating offset (typically 2100)
-   * @returns Estimated absolute FIBS rating
-   */
-  static getAbsoluteFibsRating(
-    chequerError: number,
-    cubeError: number,
-    numGames: number,
-    ratingOffset: number
-  ): number {
-    return addon.getAbsoluteFibsRating(chequerError, cubeError, numGames, ratingOffset)
-  }
-
-  /**
-   * Map an error rate to a rating category (Awful through Supernatural).
-   * Uses the same thresholds as GNU Backgammon analysis.
-   *
-   * @param errorRate Error rate to classify
-   * @returns Rating category enum value and human-readable name
-   */
-  static getRatingCategory(errorRate: number): { category: number; name: string } {
-    return addon.getRatingCategory(errorRate)
-  }
-
 /**
    * Decode a GNU Backgammon position ID to a board array.
    * Returns the raw decoded position where:
@@ -1127,9 +1059,6 @@ export {
   deriveMatchLength,
   deriveMatchScore,
 } from './integration/backgammon-core'
-
-export { RatingCategory } from './types'
-export type { RatingCategoryResult } from './types'
 
 // Export default instance
 export default GnuBgHints
