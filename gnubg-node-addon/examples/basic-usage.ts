@@ -1,4 +1,4 @@
-import { GnuBgHints } from '@nodots-llc/gnubg-hints';
+import { GnuBgHints, MoveFilterSetting } from '@nodots-llc/gnubg-hints';
 import type {
   BackgammonBoard,
   BackgammonGame,
@@ -23,7 +23,7 @@ async function demonstrateHints() {
     // 2. Configure evaluation settings (optional)
     GnuBgHints.configure({
       evalPlies: 2,      // Evaluation depth (0-3, higher = slower but better)
-      moveFilter: 2,     // Move filter level (0-4, higher = more moves)
+      moveFilter: MoveFilterSetting.Normal, // Move filter level
       usePruning: true,  // Use pruning networks for speed
       noise: 0.0        // Deterministic evaluation (0.0) vs random (0.1)
     });
@@ -61,6 +61,8 @@ async function demonstrateMoveHints(board: BackgammonBoard) {
   const hintRequest = {
     board,
     dice: diceRoll,
+    activePlayerColor: 'white' as BackgammonColor,
+    activePlayerDirection: 'clockwise' as const,
     cubeValue: 1,
     cubeOwner: null as BackgammonColor | null,
     matchScore: [0, 0] as [number, number],
@@ -95,6 +97,8 @@ async function demonstrateDoubleHints(board: BackgammonBoard) {
   const doubleRequest = {
     board,
     dice: [0, 0] as [number, number], // No dice for cube decisions
+    activePlayerColor: 'white' as BackgammonColor,
+    activePlayerDirection: 'clockwise' as const,
     cubeValue: 1,
     cubeOwner: null as BackgammonColor | null,
     matchScore: [2, 3] as [number, number],
@@ -123,6 +127,8 @@ async function demonstrateTakeHints(board: BackgammonBoard) {
   const takeRequest = {
     board,
     dice: [0, 0] as [number, number],
+    activePlayerColor: 'white' as BackgammonColor,
+    activePlayerDirection: 'clockwise' as const,
     cubeValue: 2, // Opponent has doubled
     cubeOwner: 'black' as BackgammonColor,
     matchScore: [1, 4] as [number, number],
@@ -239,6 +245,8 @@ async function integrateWithExistingGame(game: BackgammonGame) {
   const hintRequest = {
     board: game.board,
     dice: game.activePlay.dice,
+    activePlayerColor: currentPlayer.color,
+    activePlayerDirection: currentPlayer.direction,
     cubeValue: game.cube.value,
     cubeOwner: game.cube.owner,
     matchScore: [

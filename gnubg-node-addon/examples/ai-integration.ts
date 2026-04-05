@@ -1,4 +1,4 @@
-import { GnuBgHints } from '@nodots-llc/gnubg-hints';
+import { GnuBgHints, MoveFilterSetting } from '@nodots-llc/gnubg-hints';
 import type {
   BackgammonBoard,
   BackgammonGame,
@@ -36,25 +36,25 @@ export class GnuBgAIPlayer {
     const configs = {
       beginner: {
         evalPlies: 0,
-        moveFilter: 0,
+        moveFilter: MoveFilterSetting.Tiny,
         usePruning: true,
         noise: 0.15 // Add some randomness for beginner mistakes
       },
       intermediate: {
         evalPlies: 1,
-        moveFilter: 1,
+        moveFilter: MoveFilterSetting.Narrow,
         usePruning: true,
         noise: 0.08
       },
       expert: {
         evalPlies: 2,
-        moveFilter: 2,
+        moveFilter: MoveFilterSetting.Normal,
         usePruning: true,
         noise: 0.02
       },
       worldclass: {
         evalPlies: 3,
-        moveFilter: 3,
+        moveFilter: MoveFilterSetting.Large,
         usePruning: false, // Full evaluation for world-class play
         noise: 0.0
       }
@@ -163,6 +163,8 @@ export class GnuBgAIPlayer {
     return {
       board: game.board,
       dice: game.activePlay?.dice || [0, 0] as [number, number],
+      activePlayerColor: currentPlayer.color,
+      activePlayerDirection: currentPlayer.direction,
       cubeValue: game.cube.value,
       cubeOwner: game.cube.owner,
       matchScore: [currentPlayer.score, opponent.score] as [number, number],

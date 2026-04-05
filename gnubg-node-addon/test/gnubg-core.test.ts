@@ -1,4 +1,4 @@
-import { GnuBgHints } from '../src';
+import { GnuBgHints, MoveFilterSetting } from '../src';
 
 describe('GNU Backgammon Core Integration', () => {
   beforeAll(async () => {
@@ -26,7 +26,7 @@ describe('GNU Backgammon Core Integration', () => {
     it('should configure engine settings', () => {
       const config = {
         evalPlies: 2,
-        moveFilter: 1,
+        moveFilter: MoveFilterSetting.Narrow,
         threadCount: 1,
         usePruning: true,
         noise: 0.0
@@ -46,6 +46,7 @@ describe('GNU Backgammon Core Integration', () => {
       const basicRequest = {
         board: createSimpleBoard(),
         dice: [3, 4] as [number, number],
+        activePlayerDirection: 'clockwise' as const,
         cubeValue: 1,
         cubeOwner: null,
         matchScore: [0, 0] as [number, number],
@@ -74,6 +75,7 @@ describe('GNU Backgammon Core Integration', () => {
       const basicRequest = {
         board: createSimpleBoard(),
         dice: [1, 1] as [number, number],
+        activePlayerDirection: 'clockwise' as const,
         cubeValue: 1,
         cubeOwner: null,
         matchScore: [0, 0] as [number, number],
@@ -94,6 +96,7 @@ describe('GNU Backgammon Core Integration', () => {
       const basicRequest = {
         board: createSimpleBoard(),
         dice: [2, 5] as [number, number],
+        activePlayerDirection: 'clockwise' as const,
         cubeValue: 2,
         cubeOwner: null,
         matchScore: [0, 0] as [number, number],
@@ -118,6 +121,7 @@ describe('GNU Backgammon Core Integration', () => {
       const invalidRequest = {
         board: null as any,
         dice: [3, 4] as [number, number],
+        activePlayerDirection: 'clockwise' as const,
         cubeValue: 1,
         cubeOwner: null,
         matchScore: [0, 0] as [number, number],
@@ -137,6 +141,7 @@ describe('GNU Backgammon Core Integration', () => {
       const request = {
         board: createSimpleBoard(),
         dice: [3, 4] as [number, number],
+        activePlayerDirection: 'clockwise' as const,
         cubeValue: 1,
         cubeOwner: null,
         matchScore: [0, 0] as [number, number],
@@ -160,6 +165,7 @@ describe('GNU Backgammon Core Integration', () => {
       const request = {
         board: createComplexBoard(),
         dice: [6, 5] as [number, number],
+        activePlayerDirection: 'clockwise' as const,
         cubeValue: 1,
         cubeOwner: null,
         matchScore: [0, 0] as [number, number],
@@ -180,16 +186,15 @@ describe('GNU Backgammon Core Integration', () => {
 });
 
 // Helper functions to create test boards
-function createSimpleBoard(): any {
-  // Simplified board representation for testing
+function createEmptyBoard(): any {
+  const points = Array.from({ length: 24 }, (_, i) => ({
+    position: { clockwise: i + 1, counterclockwise: 24 - i },
+    checkers: [] as Array<{ color: 'white' | 'black' }>
+  }));
+
   return {
-    points: Array.from({ length: 24 }, (_, i) => ({
-      position: {
-        clockwise: i + 1,
-        counterclockwise: 24 - i
-      },
-      checkers: []
-    })),
+    id: 'test-empty-board',
+    points,
     bar: {
       clockwise: { checkers: [] },
       counterclockwise: { checkers: [] }
@@ -201,8 +206,8 @@ function createSimpleBoard(): any {
   };
 }
 
-function createComplexBoard(): any {
-  const board = createSimpleBoard();
+function createSimpleBoard(): any {
+  const board = createEmptyBoard();
 
   // Add some checkers to create a more realistic position
   // Starting position approximation
@@ -217,4 +222,8 @@ function createComplexBoard(): any {
   board.points[18].checkers = Array(5).fill({ color: 'black' });
 
   return board;
+}
+
+function createComplexBoard(): any {
+  return createSimpleBoard();
 }

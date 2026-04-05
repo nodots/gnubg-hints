@@ -1,4 +1,8 @@
-import type { BackgammonBoard, BackgammonColor } from '@nodots-llc/backgammon-types';
+import type {
+  BackgammonBoard,
+  BackgammonColor,
+  BackgammonMoveDirection,
+} from '@nodots-llc/backgammon-types';
 
 export type CheckerLike = {
   color?: BackgammonColor;
@@ -29,6 +33,14 @@ export interface SimplifiedBoard {
 
 export type HintBoard = BackgammonBoard | SimplifiedBoard;
 
+export enum MoveFilterSetting {
+  Tiny = 0,
+  Narrow = 1,
+  Normal = 2,
+  Large = 3,
+  Huge = 4,
+}
+
 /**
  * Request structure for hint evaluation
  */
@@ -41,6 +53,11 @@ export interface HintRequest {
    * When omitted, defaults to 'white' for backward compatibility.
    */
   activePlayerColor?: BackgammonColor;
+  /**
+   * The movement direction of the player who is on roll.
+   * Required for canonical GNU normalization.
+   */
+  activePlayerDirection: BackgammonMoveDirection;
   cubeValue: number;
   cubeOwner: BackgammonColor | null;
   matchScore: [number, number];
@@ -110,7 +127,7 @@ export interface TakeHint {
  */
 export interface HintConfig {
   evalPlies?: number; // Evaluation depth (0-3)
-  moveFilter?: number; // Move filter level (0-4)
+  moveFilter?: MoveFilterSetting; // Move filter level (Tiny..Huge)
   threadCount?: number; // Number of threads for evaluation
   usePruning?: boolean; // Use pruning neural networks
   noise?: number; // Evaluation noise (0.0 = deterministic)

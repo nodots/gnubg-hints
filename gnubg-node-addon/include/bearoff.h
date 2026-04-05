@@ -21,6 +21,7 @@
 #ifndef BEAROFF_H
 #define BEAROFF_H
 
+#include <glib.h>
 #include "gnubg-types.h"
 
 

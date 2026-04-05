@@ -6,6 +6,7 @@ import type {
   BackgammonDice,
   BackgammonDiceRolled,
   BackgammonGame,
+  BackgammonMoveDirection,
   BackgammonPlayer,
   MatchInfo
 } from '@nodots-llc/backgammon-types';
@@ -38,6 +39,11 @@ export interface GameHintContextOverrides
    * who is on roll to encode positions from their perspective.
    */
   activePlayerColor?: BackgammonColor;
+  /**
+   * Override the active player direction. Defaults to game.activePlayer.direction.
+   * Required for canonical GNU normalization.
+   */
+  activePlayerDirection?: BackgammonMoveDirection;
 }
 
 const DEFAULT_DICE: [number, number] = [0, 0];
@@ -61,11 +67,16 @@ export function createHintRequestFromGame(
 
   // Derive active player color from game state - critical for correct board encoding
   const activePlayerColor = overrides.activePlayerColor ?? game.activePlayer?.color ?? 'white';
+  const activePlayerDirection = overrides.activePlayerDirection ?? game.activePlayer?.direction;
+  if (!activePlayerDirection) {
+    throw new Error('Backgammon game is missing active player direction.');
+  }
 
   return {
     board,
     dice,
     activePlayerColor,
+    activePlayerDirection,
     cubeValue: overrides.cubeValue ?? deriveCubeValue(game.cube),
     cubeOwner: overrides.cubeOwner ?? deriveCubeOwner(game.cube),
     matchScore: overrides.matchScore ?? deriveMatchScore(matchInfo),

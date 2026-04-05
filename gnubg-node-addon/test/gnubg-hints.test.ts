@@ -1,4 +1,4 @@
-import { GnuBgHints, HintRequest, MoveHint, DoubleHint, TakeHint } from '../src';
+import { GnuBgHints, HintRequest, MoveHint, DoubleHint, TakeHint, MoveFilterSetting } from '../src';
 
 describe('GNU Backgammon Hints Tests', () => {
   // Initialize before all tests
@@ -31,7 +31,7 @@ describe('GNU Backgammon Hints Tests', () => {
       expect(() => {
         GnuBgHints.configure({
           evalPlies: 2,
-          moveFilter: 2,
+          moveFilter: MoveFilterSetting.Normal,
           threadCount: 1,
           usePruning: true,
           noise: 0.0
@@ -91,6 +91,8 @@ describe('GNU Backgammon Hints Tests', () => {
       const request: HintRequest = {
         board: createStartingBoard(),
         dice: [3, 1],
+        activePlayerColor: 'white',
+        activePlayerDirection: 'clockwise',
         cubeValue: 1,
         cubeOwner: null,
         matchScore: [0, 0],
@@ -119,6 +121,8 @@ describe('GNU Backgammon Hints Tests', () => {
       const request: HintRequest = {
         board: createStartingBoard(),
         dice: [6, 4],
+        activePlayerColor: 'white',
+        activePlayerDirection: 'clockwise',
         cubeValue: 1,
         cubeOwner: null,
         matchScore: [0, 0],
@@ -142,6 +146,8 @@ describe('GNU Backgammon Hints Tests', () => {
       const request: HintRequest = {
         board: createStartingBoard(),
         dice: [0, 0], // Before rolling
+        activePlayerColor: 'white',
+        activePlayerDirection: 'clockwise',
         cubeValue: 1,
         cubeOwner: null,
         matchScore: [0, 0],
@@ -163,6 +169,8 @@ describe('GNU Backgammon Hints Tests', () => {
       const request: HintRequest = {
         board: createStartingBoard(),
         dice: [0, 0],
+        activePlayerColor: 'white',
+        activePlayerDirection: 'clockwise',
         cubeValue: 1,
         cubeOwner: null,
         matchScore: [6, 5], // Crawford game
@@ -184,6 +192,8 @@ describe('GNU Backgammon Hints Tests', () => {
       const request: HintRequest = {
         board: createStartingBoard(),
         dice: [0, 0],
+        activePlayerColor: 'white',
+        activePlayerDirection: 'clockwise',
         cubeValue: 2,
         cubeOwner: 'white',
         matchScore: [0, 0],
@@ -214,6 +224,8 @@ describe('GNU Backgammon Hints Tests', () => {
       const request: HintRequest = {
         board: createStartingBoard(),
         dice: [3, 1],
+        activePlayerColor: 'white',
+        activePlayerDirection: 'clockwise',
         cubeValue: 1,
         cubeOwner: null,
         matchScore: [0, 0],
@@ -233,9 +245,9 @@ describe('GNU Backgammon Hints Tests', () => {
       const invalidPositionId = 'INVALID_ID';
       const dice: [number, number] = [3, 1];
 
-      // Should not crash but return empty or error
-      const hints = await GnuBgHints.getHintsFromPositionId(invalidPositionId, dice);
-      expect(Array.isArray(hints)).toBe(true);
+      await expect(
+        GnuBgHints.getHintsFromPositionId(invalidPositionId, dice)
+      ).rejects.toThrow('Invalid position ID');
     });
   });
 
@@ -244,6 +256,8 @@ describe('GNU Backgammon Hints Tests', () => {
       const request: HintRequest = {
         board: createStartingBoard(),
         dice: [6, 4],
+        activePlayerColor: 'white',
+        activePlayerDirection: 'clockwise',
         cubeValue: 1,
         cubeOwner: null,
         matchScore: [0, 0],
@@ -265,11 +279,11 @@ describe('GNU Backgammon Hints Tests', () => {
 
 // Helper function to create a starting board
 function createStartingBoard() {
-  return {
+  const board = {
     id: 'test-board',
     points: Array.from({ length: 24 }, (_, i) => ({
       position: { clockwise: i + 1, counterclockwise: 24 - i },
-      checkers: []
+      checkers: [] as Array<{ color: 'white' | 'black' }>
     })),
     bar: {
       clockwise: { checkers: [] },
@@ -280,4 +294,17 @@ function createStartingBoard() {
       counterclockwise: { checkers: [] }
     }
   };
+
+  // Starting position approximation
+  board.points[23].checkers = Array(2).fill({ color: 'white' });
+  board.points[12].checkers = Array(5).fill({ color: 'white' });
+  board.points[7].checkers = Array(3).fill({ color: 'white' });
+  board.points[5].checkers = Array(5).fill({ color: 'white' });
+
+  board.points[0].checkers = Array(2).fill({ color: 'black' });
+  board.points[11].checkers = Array(5).fill({ color: 'black' });
+  board.points[16].checkers = Array(3).fill({ color: 'black' });
+  board.points[18].checkers = Array(5).fill({ color: 'black' });
+
+  return board;
 }

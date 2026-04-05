@@ -1,4 +1,4 @@
-import { GnuBgHints } from '../src';
+import { GnuBgHints, MoveFilterSetting } from '../src';
 
 describe('GNU Backgammon Simple Tests', () => {
   describe('Static Methods', () => {
@@ -39,7 +39,7 @@ describe('GNU Backgammon Simple Tests', () => {
     it('should accept configuration object', () => {
       const config = {
         evalPlies: 1,
-        moveFilter: 1,
+        moveFilter: MoveFilterSetting.Narrow,
         threadCount: 1,
         usePruning: false,
         noise: 0.1
