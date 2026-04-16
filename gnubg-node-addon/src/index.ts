@@ -275,20 +275,9 @@ export class GnuBgHints {
     // Decode the position to get checker arrays
     const decoded = this.decodePositionId(positionId)
 
-    // If clockwise player is on roll, we need to swap the perspective
-    // Our canonical encoding: X = clockwise, O = counterclockwise
-    // GNU BG hint core expects player-on-roll in index 1 (O)
-    // So if clockwise is on roll, swap the arrays to move them to index 1
-    let effectivePositionId = positionId
-    if (activePlayerDirection === 'clockwise') {
-      // Swap X and O: clockwise player moves to O (index 1, on roll)
-      // getPositionId expects TanBoard format: [[...x], [...o]]
-      const swappedBoard = [decoded.o, decoded.x]
-      effectivePositionId = addon.getPositionId(swappedBoard)
-      logDebug('[gnubg-hints] getHintsFromPositionId: Swapped for clockwise player on roll')
-      logDebug('[gnubg-hints]   Original posId:', positionId)
-      logDebug('[gnubg-hints]   Swapped posId:', effectivePositionId)
-    }
+    // The position ID already has the on-roll player in TanBoard[0].
+    // No swap needed — exportToGnuPositionId handles the encoding.
+    const effectivePositionId = positionId
 
     return new Promise((resolve, reject) => {
       // Create minimal request object with just position ID and dice
