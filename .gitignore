@@ -146,7 +146,9 @@ doc/*.info
 doc/gnubg.6
 
 # GNU Backgammon binary database files
-*.bd
+# gnubg_os0.bd and gnubg_ts0.bd are committed so prod Docker images
+# pick them up via COPY . . — without them GNU silently falls back
+# to BO_HEURISTIC for bearoff evaluation (orders of magnitude slower).
 *.wd
 
 .claude/
