@@ -124,19 +124,19 @@ SUCCESS=0
 WARNINGS=0
 
 if copy_or_generate_wd; then
-    ((SUCCESS++))
+    SUCCESS=$((SUCCESS + 1))
 else
-    ((WARNINGS++))
+    WARNINGS=$((WARNINGS + 1))
 fi
 
 if copy_or_generate_ts0; then
-    ((SUCCESS++))
+    SUCCESS=$((SUCCESS + 1))
 else
-    ((WARNINGS++))
+    WARNINGS=$((WARNINGS + 1))
 fi
 
 if copy_or_generate_os0; then
-    ((SUCCESS++))
+    SUCCESS=$((SUCCESS + 1))
 fi
 
 echo ""
