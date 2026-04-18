@@ -1,0 +1,19 @@
+@nodots/gnubg-hints
+
+This Node.js package embeds and links against GNU Backgammon, a free
+backgammon program. GNU Backgammon is licensed under the GNU General Public
+License version 3 (GPL-3.0). See LICENSE for the full license text.
+
+GNU Backgammon upstream:
+  https://www.gnu.org/software/gnubg/
+  https://www.savannah.gnu.org/projects/gnubg/
+
+GNU Backgammon is developed and maintained by a community of contributors;
+see the AUTHORS file at the root of the gnubg-hints repository for a
+partial list of authors.
+
+Because this package statically links GPL-3.0 code from GNU Backgammon,
+any derivative work that consumes @nodots/gnubg-hints is subject to the
+GPL-3.0 obligations. Consumers who need an MIT-licensed backgammon engine
+should use @nodots/backgammon-core and @nodots/backgammon-ai, which do
+not depend on this package.

@@ -99,7 +99,7 @@ describe('GNU Backgammon Working Integration', () => {
   describe('TypeScript Integration Tests', () => {
     it('✅ should properly import official types', () => {
       // Test that we can import from the official types package
-      const types = require('@nodots-llc/backgammon-types');
+      const types = require('@nodots/backgammon-types');
       expect(types).toBeDefined();
     });
 
@@ -196,7 +196,7 @@ describe('GNU Backgammon Integration Summary', () => {
     console.log('✅ Hint functions (hint_move, hint_double, hint_take) available');
     console.log('✅ C++ N-API addon compiled and linked');
     console.log('✅ TypeScript interface layer working');
-    console.log('✅ Official @nodots-llc/backgammon-types@4.0.1 integrated');
+    console.log('✅ Official @nodots/backgammon-types@4.0.1 integrated');
     console.log('✅ Test framework with coverage reporting functional');
     console.log('\n🚀 Ready for production hint engine integration!\n');
 

@@ -11,7 +11,7 @@ import type {
   BackgammonPlayerInactive,
   BackgammonPlayerMoving,
   MatchInfo
-} from '@nodots-llc/backgammon-types';
+} from '@nodots/backgammon-types';
 
 describe('Backgammon core bridge helpers', () => {
   it('creates a hint request using data from the game state', () => {

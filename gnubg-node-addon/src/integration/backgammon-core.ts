@@ -9,7 +9,7 @@ import type {
   BackgammonMoveDirection,
   BackgammonPlayer,
   MatchInfo
-} from '@nodots-llc/backgammon-types';
+} from '@nodots/backgammon-types';
 import type { HintRequest } from '../types';
 
 export interface GameHintContextOverrides
@@ -50,7 +50,7 @@ const DEFAULT_DICE: [number, number] = [0, 0];
 
 /**
  * Create a {@link HintRequest} from a {@link BackgammonGame} instance exported by
- * `@nodots-llc/backgammon-core`.
+ * `@nodots/backgammon-core`.
  */
 export function createHintRequestFromGame(
   game: BackgammonGame,
