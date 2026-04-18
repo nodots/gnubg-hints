@@ -3,7 +3,7 @@ import {
   BackgammonBoard,
   BackgammonColor,
   BackgammonMoveDirection,
-} from '@nodots-llc/backgammon-types'
+} from '@nodots/backgammon-types'
 
 type CheckerLike = {
   color?: BackgammonColor

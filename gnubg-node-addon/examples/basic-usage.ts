@@ -1,11 +1,11 @@
-import { GnuBgHints, MoveFilterSetting } from '@nodots-llc/gnubg-hints';
+import { GnuBgHints, MoveFilterSetting } from '@nodots/gnubg-hints';
 import type {
   BackgammonBoard,
   BackgammonGame,
   BackgammonMove,
   BackgammonColor,
   BackgammonPlayer
-} from '@nodots-llc/backgammon-types';
+} from '@nodots/backgammon-types';
 
 /**
  * Example: Basic integration of GNU Backgammon hints
