@@ -38,6 +38,12 @@ lib/position_utils.c
 lib/*.bd
 lib/*.wd
 
+# Override the repo-root ignore of *.bd / *.wd so we can commit the
+# bundled weights that ship with the published tarball.
+!gnubg.wd
+!gnubg_os0.bd
+!gnubg_ts0.bd
+
 # Temporary files
 tmp/
 .tmp/

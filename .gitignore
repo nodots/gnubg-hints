@@ -150,5 +150,9 @@ doc/gnubg.6
 # pick them up via COPY . . — without them GNU silently falls back
 # to BO_HEURISTIC for bearoff evaluation (orders of magnitude slower).
 *.wd
+# Exception: publishable addon bundles the weights for consumer installs
+!gnubg-node-addon/gnubg.wd
+!gnubg-node-addon/gnubg_os0.bd
+!gnubg-node-addon/gnubg_ts0.bd
 
 .claude/
