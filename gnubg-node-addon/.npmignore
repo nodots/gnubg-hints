@@ -40,7 +40,6 @@ benchmark/
 examples/
 final_integration_test/
 final_integration_test.c
-scripts/
 test/
 test_core/
 test_core.c

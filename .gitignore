@@ -148,5 +148,9 @@ doc/gnubg.6
 # GNU Backgammon binary database files
 *.bd
 *.wd
+# Exception: publishable addon bundles the weights for consumer installs
+!gnubg-node-addon/gnubg.wd
+!gnubg-node-addon/gnubg_os0.bd
+!gnubg-node-addon/gnubg_ts0.bd
 
 .claude/
