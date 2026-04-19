@@ -28,6 +28,14 @@ copy_or_generate_wd() {
         return 0
     fi
 
+    # Try bundled file in the addon dir (npm consumer install path)
+    if [ -f "$ADDON_DIR/gnubg.wd" ]; then
+        echo "Copying bundled gnubg.wd..."
+        cp "$ADDON_DIR/gnubg.wd" "$target"
+        echo "Copied gnubg.wd"
+        return 0
+    fi
+
     # Try copying from system installation
     if [ -f "$SYSTEM_GNUBG_DIR/gnubg.wd" ]; then
         echo "Copying gnubg.wd from system installation..."
@@ -68,6 +76,14 @@ copy_or_generate_ts0() {
         return 0
     fi
 
+    # Try bundled file in the addon dir (npm consumer install path)
+    if [ -f "$ADDON_DIR/gnubg_ts0.bd" ]; then
+        echo "Copying bundled gnubg_ts0.bd..."
+        cp "$ADDON_DIR/gnubg_ts0.bd" "$target"
+        echo "Copied gnubg_ts0.bd"
+        return 0
+    fi
+
     # Try copying from system installation
     if [ -f "$SYSTEM_GNUBG_DIR/gnubg_ts0.bd" ]; then
         echo "Copying gnubg_ts0.bd from system installation..."
@@ -96,6 +112,14 @@ copy_or_generate_os0() {
 
     if [ -f "$target" ]; then
         echo "gnubg_os0.bd already exists, skipping"
+        return 0
+    fi
+
+    # Try bundled file in the addon dir (npm consumer install path)
+    if [ -f "$ADDON_DIR/gnubg_os0.bd" ]; then
+        echo "Copying bundled gnubg_os0.bd..."
+        cp "$ADDON_DIR/gnubg_os0.bd" "$target"
+        echo "Copied gnubg_os0.bd"
         return 0
     fi
 
