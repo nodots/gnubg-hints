@@ -8,11 +8,14 @@ This is a **multi-repo ecosystem**, not a monorepo. Each package has its own Git
 
 | Package | Repository | npm |
 |---------|------------|-----|
-| types | [nodots-backgammon-types](https://github.com/nodots/nodots-backgammon-types) | @nodots-llc/backgammon-types |
-| core | [nodots-backgammon-core](https://github.com/nodots/nodots-backgammon-core) | @nodots-llc/backgammon-core |
-| ai | [nodots-backgammon-ai](https://github.com/nodots/nodots-backgammon-ai) | @nodots-llc/backgammon-ai |
-| api | Private | - |
-| client | Private | - |
+| types | [backgammon-types](https://github.com/nodots/backgammon-types) | @nodots/backgammon-types |
+| core | [backgammon-core](https://github.com/nodots/backgammon-core) | @nodots/backgammon-core |
+| ai | [backgammon-ai](https://github.com/nodots/backgammon-ai) | @nodots/backgammon-ai |
+| api-utils | [backgammon-api-utils](https://github.com/nodots/backgammon-api-utils) | @nodots/backgammon-api-utils |
+| cli | [backgammon-cli](https://github.com/nodots/backgammon-cli) | @nodots/backgammon-cli |
+| gnubg-hints | [gnubg-hints](https://github.com/nodots/gnubg-hints) | @nodots/gnubg-hints |
+| api | [backgammon-api](https://github.com/nodots/backgammon-api) (private) | - |
+| client | [backgammon-client](https://github.com/nodots/backgammon-client) (private) | - |
 
 When contributing, work in the appropriate package repository.
 
@@ -251,7 +254,7 @@ router.post('/games/:id/double', async (req, res) => { ... })
 
 ## Type Changes
 
-When modifying `@nodots-llc/backgammon-types`:
+When modifying `@nodots/backgammon-types`:
 
 1. **Consider backwards compatibility** - Breaking changes require major version bump
 2. **Update all consumers** - Core, AI, API, and Client may need updates
@@ -261,7 +264,7 @@ When modifying `@nodots-llc/backgammon-types`:
 
 ## Game Logic Changes
 
-When modifying `@nodots-llc/backgammon-core`:
+When modifying `@nodots/backgammon-core`:
 
 1. **ALL game logic lives in core** - Never implement rules in API or Client
 2. **Write unit tests** - Cover edge cases, especially for moves
@@ -313,7 +316,7 @@ Include:
 ## Getting Help
 
 - **GitHub Issues**: [nodots-backgammon/issues](https://github.com/nodots/nodots-backgammon/issues)
-- **API Docs**: [SwaggerHub](https://app.swaggerhub.com/apis/nodotsadvisorygroup/nodots-backgammon-api/4.6.4)
+- **API Docs**: [SwaggerHub](https://app.swaggerhub.com/apis/nodotsadvisorygroup/nodots-backgammon-api/1.0.0)
 - **Email**: kenr@nodots.com
 
 ---
