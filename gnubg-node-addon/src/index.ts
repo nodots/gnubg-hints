@@ -806,18 +806,66 @@ export class GnuBgHints {
     if (!normalization) {
       return []
     }
-    const baseEquity =
-      Array.isArray(gnubgHints) && gnubgHints.length > 0
-        ? (gnubgHints[0].equity ?? 0)
-        : 0
 
-    return (Array.isArray(gnubgHints) ? gnubgHints : []).map((hint, index) => ({
+    // Reorder equity-tied hints before downstream consumers see them.
+    // GNU's cubeful eval can rank lines that are mathematically tied
+    // (~1.0 cubeless equity, no gammon possible) in essentially-random
+    // order due to float-precision noise -- e.g. for issue-41's bear-off
+    // endgame the slow line ranked above the immediate-win line by
+    // ~5e-7 of equity. The racing principle "off > pips" breaks the tie
+    // deterministically. See nodots/gnubg-hints#30.
+    const orderedHints = this.applyEquityTiebreaker(
+      Array.isArray(gnubgHints) ? gnubgHints : []
+    )
+    const baseEquity = orderedHints.length > 0 ? (orderedHints[0].equity ?? 0) : 0
+
+    return orderedHints.map((hint, index) => ({
       moves: this.convertMovesFromGnuBg(hint?.moves, board, normalization),
       evaluation: this.normalizeEvaluation(hint?.evaluation),
       equity: hint?.equity ?? 0,
       rank: index + 1,
       difference: index === 0 ? 0 : (hint?.equity ?? 0) - baseEquity,
     }))
+  }
+
+  /**
+   * Reorder equity-tied hints so the line with more bear-offs comes first.
+   *
+   * GNU's eval already sorts by score, but cubeful equity computation adds
+   * NN-precision noise that can put a slow bear-off line ahead of a line
+   * that wins outright. This pass walks the (already-sorted) list, groups
+   * adjacent hints whose equity is within EQUITY_TIE_EPSILON, and
+   * reorders each group by descending bear-off count. Outside the epsilon
+   * the original GNU ordering is preserved exactly. The epsilon is set well
+   * below GNU's "doubtful" threshold (0.020) so meaningful equity
+   * differences are never overridden.
+   */
+  private static applyEquityTiebreaker(hints: any[]): any[] {
+    if (hints.length < 2) return hints
+    const EQUITY_TIE_EPSILON = 1e-4
+    const bearOffCount = (hint: any): number => {
+      const moves = this.normalizeGnuBgMoves(hint?.moves)
+      return moves.filter(([, to]) => to === -1).length
+    }
+    const result = hints.slice()
+    let i = 0
+    while (i < result.length) {
+      const groupEquity = result[i]?.equity ?? 0
+      let j = i + 1
+      while (
+        j < result.length &&
+        Math.abs((result[j]?.equity ?? 0) - groupEquity) <= EQUITY_TIE_EPSILON
+      ) {
+        j++
+      }
+      if (j - i > 1) {
+        const cluster = result.slice(i, j)
+        cluster.sort((a, b) => bearOffCount(b) - bearOffCount(a))
+        result.splice(i, cluster.length, ...cluster)
+      }
+      i = j
+    }
+    return result
   }
 
   /**

@@ -7,9 +7,18 @@
 #include "glib-ext.h"
 #include "multithread.h"
 #include "output.h"
+#include "bearoff.h"
 #include <glib.h>
 #include <string.h>
 #include <stdlib.h>
+
+/* Bearoff DB pointers live in eval.c globals. Reach in to report load status
+ * so callers can detect the silent-failure mode where extended DBs are not
+ * shipped (gnubg_os.bd, gnubg_ts.bd) and eval falls through to the NN. */
+extern bearoffcontext *pbc1;
+extern bearoffcontext *pbc2;
+extern bearoffcontext *pbcOS;
+extern bearoffcontext *pbcTS;
 
 typedef int (*cfunc)(const void *, const void *);
 
@@ -74,6 +83,24 @@ int gnubg_initialize(const char *weights_path) {
     char *weights_binary = BuildFilename("gnubg.wd");
 
     EvalInitialise(weights, weights_binary, FALSE, NULL);
+
+    /* Surface bearoff DB load status so a degraded mode (missing extended
+     * DBs gnubg_os.bd / gnubg_ts.bd) is visible rather than silently falling
+     * back to the race neural net. See nodots/gnubg-hints#30. Suppress the
+     * line if NODOTS_LOG_LEVEL=silent or NODOTS_LOG_SILENT=1. */
+    {
+        const char *silent_env = g_getenv("NODOTS_LOG_SILENT");
+        const char *level_env = g_getenv("NODOTS_LOG_LEVEL");
+        int silent = (silent_env && silent_env[0] == '1') ||
+                     (level_env && g_ascii_strcasecmp(level_env, "silent") == 0);
+        if (!silent) {
+            g_printerr("[gnubg-hints] bearoff databases: pbc1=%s pbc2=%s pbcOS=%s pbcTS=%s\n",
+                       pbc1 ? "loaded" : "MISSING",
+                       pbc2 ? "loaded" : "MISSING",
+                       pbcOS ? "loaded" : "MISSING",
+                       pbcTS ? "loaded" : "MISSING");
+        }
+    }
 
     /* EvalInitialise sets neural net sizes needed by thread-local buffers. */
     MT_InitThreads();
