@@ -537,7 +537,12 @@ TakeHint HintWrapper::getTakeHint(const HintRequest& request) {
     int gnubgResult = gnubg_hint_take(board, &ci, equities);
 
     if (gnubgResult >= 0) {
-        auto determineAction = [](int decision, double take, double drop) -> std::string {
+        // Every cubedecision that is not a PASS or BEAVER variant means the
+        // correct response to the double is take (e.g. NODOUBLE_TAKE: "the
+        // doubler shouldn't double, but if doubled, take"). The old default
+        // compared arDouble equities, which are from the DOUBLER's
+        // perspective, so it answered backwards.
+        auto determineAction = [](int decision) -> std::string {
             switch (decision) {
                 case DOUBLE_BEAVER:
                 case NODOUBLE_BEAVER:
@@ -551,14 +556,17 @@ TakeHint HintWrapper::getTakeHint(const HintRequest& request) {
                 case OPTIONAL_REDOUBLE_PASS:
                     return "drop";
                 default:
-                    return take > drop ? "take" : "drop";
+                    return "take";
             }
         };
 
-        result.action = determineAction(gnubgResult, equities[0], equities[1]);
-        result.takeEquity = equities[0];
-        result.dropEquity = equities[1];
-        result.eval.equity = equities[0];
+        result.action = determineAction(gnubgResult);
+        // arDouble's OUTPUT_TAKE/OUTPUT_DROP are equities for the player on
+        // roll in `ci` -- the potential doubler. TakeHint reports the TAKER's
+        // side, so negate (drop becomes -1 for the taker).
+        result.takeEquity = -equities[0];
+        result.dropEquity = -equities[1];
+        result.eval.equity = -equities[0];
     } else {
         result.action = "drop";
         result.takeEquity = -2.0;
