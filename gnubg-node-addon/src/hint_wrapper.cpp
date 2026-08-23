@@ -74,31 +74,32 @@ bool decode_position_id(const std::string& positionId, TanBoard board) {
         for (int point = 0; point < 25; ++point)
             board[player][point] = 0;
 
-    // The addon ecosystem's ids are ON-ROLL-FIRST (the addon's own encoder
-    // emits them that way, and the reference-set convention test pins it), while
-    // gnubg's TanBoard puts the PLAYER ON ROLL in board[1]. This loop previously
-    // wrote the stream's first side into board[0] -- handing every position to
-    // FindnSaveBestMoves with the sides swapped. The failure hid in plain sight
-    // through survivorship: swapped answers are often legal on near-symmetric
-    // boards (openings, races) and only reliably illegal on asymmetric ones
-    // (primes, bar positions), which is exactly the failure pattern that was
-    // observed. Measured before this fix: only 225/346 reference positions got
-    // a LEGAL answer through the id path. After: 346/346.
-    int streamSide = 0;
+    // Side order is the GNU standard: the id's first side is board[0] (the
+    // OPPONENT), its second side is board[1] (the player on roll). This matches
+    // gnubg's own oldPositionKey/oldPositionFromKey, this addon's encoder
+    // (gnubg_position_id -> PositionID), and every core-encoded id the API
+    // sends through getHintsFromPositionId.
+    //
+    // Do NOT flip this to on-roll-first again. That was done once (issue #36):
+    // the on-roll-first dialect exists only in the protocol-adapter /
+    // backgammon-neural reference set, whose consumers decode it themselves
+    // and never call this function. Aligning this decoder to that dialect
+    // made gnubg answer for the wrong player on every core-encoded id, which
+    // shipped wrong-side practice hints to production for three weeks.
+    int playerIndex = 0;
     int pointIndex = 0;
 
-    for (int i = 0; i < 10 && streamSide < 2; ++i) {
+    for (int i = 0; i < 10 && playerIndex < 2; ++i) {
         unsigned char cur = key[i];
-        for (int bit = 0; bit < 8 && streamSide < 2; ++bit) {
-            const int target = streamSide == 0 ? 1 : 0; // first side = mover = board[1]
+        for (int bit = 0; bit < 8 && playerIndex < 2; ++bit) {
             if (cur & 0x1U) {
                 if (pointIndex >= 25)
                     return false;
-                board[target][pointIndex] += 1U;
+                board[playerIndex][pointIndex] += 1U;
             } else {
                 ++pointIndex;
                 if (pointIndex == 25) {
-                    ++streamSide;
+                    ++playerIndex;
                     pointIndex = 0;
                 }
             }
@@ -106,7 +107,7 @@ bool decode_position_id(const std::string& positionId, TanBoard board) {
         }
     }
 
-    return streamSide == 2 && pointIndex == 0;
+    return playerIndex == 2 && pointIndex == 0;
 }
 
 } // anonymous namespace
