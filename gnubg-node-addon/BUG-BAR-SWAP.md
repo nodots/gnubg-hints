@@ -1,7 +1,43 @@
-# FIXED: `decode_position_id` handed gnubg every position with the sides swapped
+# `decode_position_id` side order — the full trail (two wrong fixes deep)
 
-**Status: FIXED 2026-07-26** in `src/hint_wrapper.cpp` (`decode_position_id`
-now writes the id's first side into `board[1]`, gnubg's mover slot).
+**Status: FIXED (again) — GNU-standard side order restored** in
+`src/hint_wrapper.cpp`: the id's first side is `board[0]` (the opponent), the
+second is `board[1]` (the player on roll). Pinned by
+`test/position-id-side-order.test.ts`. Issue: nodots/gnubg-hints#36.
+
+## The 2026-07-26 "fix" below was itself a regression
+
+The chapter that follows this note aligned the decoder to an ON-ROLL-FIRST
+dialect on the premise that "the addon ecosystem's ids are on-roll-first."
+That premise was false for every production caller:
+
+- core's `exportToGnuPositionId`, the ids stored in game history and replayed
+  by the practice endpoints, are **opponent-first** — the GNU standard
+  (`oldPositionKey` emits `anBoard[0]` first, and `anBoard[1]` is the mover).
+- this addon's own encoder (`getPositionId` → `gnubg_position_id` →
+  `PositionID`) is the GNU standard for the same reason.
+- `api-utils`' `decodePositionId` decodes opponent-first, so the client drew
+  the board correctly while the native decoder answered for the other player.
+
+The on-roll-first dialect is real but lives elsewhere: the protocol-adapter /
+backgammon-neural reference set carries such ids, and its consumers decode
+them **themselves** (neural's `decodePositionId` takes `{ onRollFirst: true }`;
+the adapter's `decodeSides` declares `positionIdConvention: 'on-roll-first'`
+at its boundary). None of them call `decode_position_id`. The 346/346
+validation that justified the 2026-07-26 change ran against those ids — it
+proved the decoder matched the reference set's dialect, and in doing so
+inverted every core-encoded id. Production served wrong-side practice hints
+from 2026-07-27 until this fix (nodots/backgammon#442).
+
+The lesson stacks on the one below: the first wrong fix patched a symptom; the
+second validated against a single corpus without asking which dialect that
+corpus spoke. The regression test now encodes with the addon's own encoder and
+checks a position where the two orders disagree (mover on the bar), so the
+decoder is tied to the encoder it must mirror, not to any external id corpus.
+
+---
+
+# Second chapter (2026-07-26, WRONG for core ids — kept for the trail)
 
 **The original title of this report was wrong in an instructive way.** The bug
 was never bar-specific: the decode placed the stream's FIRST side into
