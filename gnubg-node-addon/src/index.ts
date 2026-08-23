@@ -275,8 +275,11 @@ export class GnuBgHints {
     // Decode the position to get checker arrays
     const decoded = this.decodePositionId(positionId)
 
-    // The position ID already has the on-roll player in TanBoard[0].
-    // No swap needed — exportToGnuPositionId handles the encoding.
+    // Position ids here are GNU-standard: the id's first side is the OPPONENT
+    // (TanBoard[0]), its second side is the player on roll (TanBoard[1]).
+    // core's exportToGnuPositionId and the native decoder both follow that
+    // order, so the id passes through unchanged. (Issue #36 documents the
+    // on-roll-first dialect that must NOT be handled here.)
     const effectivePositionId = positionId
 
     return new Promise((resolve, reject) => {
