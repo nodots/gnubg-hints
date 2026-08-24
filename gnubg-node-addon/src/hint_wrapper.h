@@ -82,6 +82,16 @@ struct TakeHint {
     Napi::Object toJsObject(Napi::Env env) const;
 };
 
+// Resignation hint result (gnubg's own getResignation +
+// getResignEquities)
+struct ResignHint {
+    int resignedPoints;  // 0 = none, 1/2/3 = single/gammon/backgammon
+    double equityBefore; // resigner's equity playing on
+    double equityAfter;  // resigner's equity after the concession
+
+    Napi::Object toJsObject(Napi::Env env) const;
+};
+
 // Core wrapper class for GNU Backgammon functions
 class HintWrapper {
 public:
@@ -92,6 +102,7 @@ public:
     static std::vector<Move> getMoveHints(const HintRequest& request, int maxHints);
     static DoubleHint getDoubleHint(const HintRequest& request);
     static TakeHint getTakeHint(const HintRequest& request);
+    static ResignHint getResignHint(const HintRequest& request);
 
 private:
     static bool s_initialized;
@@ -152,6 +163,20 @@ private:
     HintRequest m_request;
     HintConfig m_config;
     TakeHint m_result;
+};
+
+class ResignHintWorker : public Napi::AsyncWorker {
+public:
+    ResignHintWorker(Napi::Function& callback, const HintRequest& request,
+                     const HintConfig& config);
+    void Execute() override;
+    void OnOK() override;
+    void OnError(const Napi::Error& error) override;
+
+private:
+    HintRequest m_request;
+    HintConfig m_config;
+    ResignHint m_result;
 };
 
 } // namespace gnubg_addon

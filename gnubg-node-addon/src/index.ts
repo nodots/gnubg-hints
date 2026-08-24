@@ -170,6 +170,19 @@ export interface TakeHint {
 }
 
 /**
+ * Resignation verdict from gnubg's own getResignation +
+ * getResignEquities (rollout.c).
+ */
+export interface ResignHint {
+  /** 0 = no resignation warranted, 1/2/3 = single/gammon/backgammon */
+  resignedPoints: 0 | 1 | 2 | 3
+  /** Resigner's equity playing on. */
+  equityBefore: number
+  /** Resigner's equity after the concession. */
+  equityAfter: number
+}
+
+/**
  * Decoded board position from a position ID
  * Index 0 = player X (clockwise in GNU BG convention)
  * Index 1 = player O (counterclockwise in GNU BG convention)
@@ -497,6 +510,64 @@ export class GnuBgHints {
       addon.shutdown()
       this.initialized = false
     }
+  }
+
+  /**
+   * Get resignation verdict using gnubg's own getResignation +
+   * getResignEquities (rollout.c). Returns how many points the player
+   * on roll should resign (0 = none, 1/2/3 = single/gammon/backgammon)
+   * plus the equities before and after the concession.
+   */
+  static async getResignHint(request: HintRequest): Promise<ResignHint> {
+    if (!this.initialized) {
+      throw new Error('GnuBgHints not initialized. Call initialize() first.')
+    }
+
+    if (!request?.board || typeof request.board !== 'object') {
+      return Promise.reject(new Error('Invalid board data'))
+    }
+
+    const activePlayerColor = request.activePlayerColor ?? 'white'
+    const activePlayerDirection = request.activePlayerDirection
+    if (!activePlayerDirection) {
+      return Promise.reject(
+        new Error('activePlayerDirection is required for GNU normalization')
+      )
+    }
+
+    return new Promise((resolve, reject) => {
+      const { gnubgBoard } = this.convertBoardToGnuBg(
+        request.board,
+        activePlayerColor,
+        activePlayerDirection
+      )
+
+      addon.getResignHint(
+        {
+          board: gnubgBoard,
+          cubeValue: request.cubeValue,
+          cubeOwner: this.normalizeCubeOwner(
+            request.cubeOwner,
+            activePlayerColor
+          ),
+          matchScore: this.normalizeMatchScore(
+            request.matchScore,
+            activePlayerColor
+          ),
+          matchLength: request.matchLength,
+          crawford: request.crawford,
+          jacoby: request.jacoby,
+          beavers: request.beavers,
+        },
+        (err: Error | null, hint: any) => {
+          if (err) {
+            reject(err)
+          } else {
+            resolve(this.convertResignHintFromGnuBg(hint))
+          }
+        }
+      )
+    })
   }
 
 /**
@@ -1085,6 +1156,17 @@ export class GnuBgHints {
       evaluation: this.normalizeEvaluation(gnubgHint.evaluation),
       takeEquity: gnubgHint.takeEquity,
       dropEquity: gnubgHint.dropEquity,
+    }
+  }
+
+  /**
+   * Convert GNU Backgammon resignation hint
+   */
+  private static convertResignHintFromGnuBg(gnubgHint: any): ResignHint {
+    return {
+      resignedPoints: gnubgHint.resignedPoints,
+      equityBefore: gnubgHint.equityBefore,
+      equityAfter: gnubgHint.equityAfter,
     }
   }
 }
