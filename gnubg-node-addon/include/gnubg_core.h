@@ -50,6 +50,20 @@ int gnubg_hint_take(
     void* hint_out       /* Output hint */
 );
 
+/* Get resignation verdict (gnubg's own getResignation +
+ * getResignEquities). hint_out points to 3 floats:
+ *   [0] resigned_points: 0 = no resignation warranted,
+ *                        1/2/3 = single/gammon/backgammon
+ *   [1] equity_before:   resigner's equity playing on
+ *   [2] equity_after:    resigner's equity after the concession
+ * Returns gnubg's cubedecision-style int (< 0 on error). */
+int gnubg_hint_resign(
+    TanBoard board,      /* Board position */
+    void* cube_info,     /* Cube information */
+    void* eval_setup,    /* evalsetup* (evaluation depth) */
+    void* hint_out       /* Output: float[3] as documented above */
+);
+
 /* Get GNU Backgammon position ID (14-char string) */
 const char* gnubg_position_id(const TanBoard board);
 

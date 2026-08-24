@@ -8,6 +8,7 @@
 #include "multithread.h"
 #include "output.h"
 #include "bearoff.h"
+#include "rollout.h"
 #include <glib.h>
 #include <string.h>
 #include <stdlib.h>
@@ -236,6 +237,40 @@ int gnubg_hint_take(TanBoard board, void *cube_info, void *hint_out) {
     float *equities = (float *)hint_out;
 
     return evaluate_cube(board, &ci, NULL, &equities[0], &equities[1]);
+}
+
+/* Resignation verdict using gnubg's own getResignation +
+ * getResignEquities (vendor/core/rollout.c). eval_setup is optional:
+ * NULL mirrors what gnubg's computer player uses in play.c (EVAL_EVAL,
+ * 0-ply) — resignation checks there are deliberately cheap. */
+int gnubg_hint_resign(TanBoard board, void *cube_info, void *eval_setup,
+                      void *hint_out) {
+    if (!g_initialized || !cube_info || !hint_out)
+        return -1;
+
+    ensure_thread_local_data();
+
+    cubeinfo ci = *(cubeinfo *)cube_info;
+    float *out = (float *)hint_out;
+
+    static evalsetup esDefault;
+    esDefault.et = EVAL_EVAL;
+    esDefault.ec = (evalcontext){ FALSE, 0, FALSE, TRUE, 0.0 };
+    const evalsetup *es =
+        eval_setup ? (const evalsetup *)eval_setup : &esDefault;
+
+    float arResign[NUM_ROLLOUT_OUTPUTS];
+    int nResigned = getResignation(arResign, board, &ci, es);
+    if (nResigned < 0)
+        return -1;
+
+    float rBefore = 0.0f, rAfter = 0.0f;
+    getResignEquities(arResign, &ci, nResigned, &rBefore, &rAfter);
+
+    out[0] = (float)nResigned; /* 0 = none, 1/2/3 = single/gammon/backgammon */
+    out[1] = rBefore;
+    out[2] = rAfter;
+    return nResigned;
 }
 
 const char *gnubg_position_id(const TanBoard board) {
