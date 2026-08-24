@@ -300,6 +300,14 @@ Napi::Object TakeHint::toJsObject(Napi::Env env) const {
     return obj;
 }
 
+Napi::Object ResignHint::toJsObject(Napi::Env env) const {
+    auto obj = Napi::Object::New(env);
+    obj.Set("resignedPoints", Napi::Number::New(env, resignedPoints));
+    obj.Set("equityBefore", Napi::Number::New(env, equityBefore));
+    obj.Set("equityAfter", Napi::Number::New(env, equityAfter));
+    return obj;
+}
+
 // HintWrapper implementation
 bool HintWrapper::initialize(const std::string& weightsPath) {
     if (s_initialized) {
@@ -682,6 +690,79 @@ void TakeHintWorker::OnOK() {
 }
 
 void TakeHintWorker::OnError(const Napi::Error& error) {
+    Callback().Call({error.Value()});
+}
+
+ResignHint HintWrapper::getResignHint(const HintRequest& request) {
+    ResignHint result;
+    result.resignedPoints = 0;
+    result.equityBefore = 0.0;
+    result.equityAfter = 0.0;
+
+    if (!s_initialized) {
+        throw std::runtime_error("GnuBgHints not initialized");
+    }
+    if (!request.hasBoard && request.positionId.empty()) {
+        throw std::runtime_error("Invalid board data");
+    }
+
+    TanBoard board;
+    cubeinfo ci;
+
+    if (request.hasBoard) {
+        for (int player = 0; player < 2; player++) {
+            for (int point = 0; point < 25; point++) {
+                board[player][point] = request.board[player][point];
+            }
+        }
+    } else if (!decode_position_id(request.positionId, board)) {
+        throw std::runtime_error("Failed to decode position ID");
+    }
+
+    int scores[2] = {request.matchScore[0], request.matchScore[1]};
+    SetCubeInfo(&ci, request.cubeValue, request.cubeOwner, 0,
+                request.matchLength, scores,
+                request.crawford ? 1 : 0, request.jacoby ? 1 : 0,
+                request.beavers ? 1 : 0, bgvDefault);
+
+    // gnubg's own resignation logic: GeneralEvaluation + Utility
+    // comparisons against the concession (rollout.c getResignation).
+    float out[3] = {0.0f, 0.0f, 0.0f};
+    int gnubgResult = gnubg_hint_resign(board, &ci, NULL, out);
+    if (gnubgResult < 0) {
+        throw std::runtime_error("gnubg resignation evaluation failed");
+    }
+
+    result.resignedPoints = gnubgResult;
+    result.equityBefore = out[1];
+    result.equityAfter = out[2];
+    return result;
+}
+
+ResignHintWorker::ResignHintWorker(Napi::Function& callback,
+                                   const HintRequest& request,
+                                   const HintConfig& config)
+    : Napi::AsyncWorker(callback), m_request(request), m_config(config) {}
+
+void ResignHintWorker::Execute() {
+    try {
+        if (!m_request.hasBoard && m_request.positionId.empty()) {
+            SetError("Invalid board data");
+            return;
+        }
+
+        HintWrapper::configure(m_config);
+        m_result = HintWrapper::getResignHint(m_request);
+    } catch (const std::exception& ex) {
+        SetError(ex.what());
+    }
+}
+
+void ResignHintWorker::OnOK() {
+    Callback().Call({Env().Null(), m_result.toJsObject(Env())});
+}
+
+void ResignHintWorker::OnError(const Napi::Error& error) {
     Callback().Call({error.Value()});
 }
 
