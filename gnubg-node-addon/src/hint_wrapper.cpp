@@ -248,6 +248,10 @@ HintRequest HintRequest::fromJsObject(const Napi::Object& obj) {
         ? obj.Get("fMoveOverride").As<Napi::Number>().Int32Value()
         : -1;
 
+    request.offeredPoints = obj.Has("offeredPoints")
+        ? obj.Get("offeredPoints").As<Napi::Number>().Int32Value()
+        : 0;
+
     return request;
 }
 
@@ -311,6 +315,7 @@ Napi::Object ResignHint::toJsObject(Napi::Env env) const {
     obj.Set("resignedPoints", Napi::Number::New(env, resignedPoints));
     obj.Set("equityBefore", Napi::Number::New(env, equityBefore));
     obj.Set("equityAfter", Napi::Number::New(env, equityAfter));
+    obj.Set("decision", Napi::Number::New(env, decision));
     return obj;
 }
 
@@ -574,6 +579,11 @@ TakeHint HintWrapper::getTakeHint(const HintRequest& request) {
                 case OPTIONAL_DOUBLE_PASS:
                 case OPTIONAL_REDOUBLE_PASS:
                     return "drop";
+                case 2: /* TAKE — gnubg_hint_take returns 2 when the taker's
+                           cubeful equity after taking beats after dropping */
+                    return "take";
+                case 0: /* DROP — taker is better off declining */
+                    return "drop";
                 default:
                     return "take";
             }
@@ -738,6 +748,24 @@ ResignHint HintWrapper::getResignHint(const HintRequest& request) {
     // gnubg's own resignation logic: GeneralEvaluation + Utility
     // comparisons against the concession (rollout.c getResignation).
     float out[3] = {0.0f, 0.0f, 0.0f};
+
+    if (request.offeredPoints > 0) {
+        // Caller supplied the offered concession: report the decider's
+        // equities before/after THIS concession so they can apply
+        // external.c's accept rule themselves.
+        float out2[3] = {0.0f, 0.0f, 0.0f};
+        int rc = gnubg_hint_resign_offered(board, &ci,
+                                           request.offeredPoints, out2);
+        if (rc < 0) {
+            throw std::runtime_error("gnubg resignation evaluation failed");
+        }
+        result.resignedPoints = request.offeredPoints;
+        result.equityBefore = out2[0];
+        result.equityAfter = out2[1];
+        result.decision = (int)out2[2];
+        return result;
+    }
+
     int gnubgResult = gnubg_hint_resign(board, &ci, NULL, out);
     if (gnubgResult < 0) {
         throw std::runtime_error("gnubg resignation evaluation failed");

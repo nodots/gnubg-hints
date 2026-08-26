@@ -236,7 +236,60 @@ int gnubg_hint_take(TanBoard board, void *cube_info, void *hint_out) {
     cubeinfo ci = *(cubeinfo *)cube_info;
     float *equities = (float *)hint_out;
 
-    return evaluate_cube(board, &ci, NULL, &equities[0], &equities[1]);
+    /* GeneralCubeDecisionE is unreliable for post-double positions (it returns
+     * degenerate arDouble for many race/cube states). Instead compute the
+     * taker's cubeful equity in the TAKE vs DROP states directly via gnubg's
+     * own GeneralEvaluation + Utility — the same machinery getResignation uses.
+     *   - TAKE: cube doubled, owned by taker, taker on roll.
+     *   - DROP: cube unchanged, owned by doubler, doubler on roll (the taker
+     *     declines and the doubler keeps the current cube).
+     * Take iff the taker's equity after taking beats after dropping.
+     * fMove here is the taker (caller sends fMoveOverride = taker). The doubler
+     * is the opposite player. */
+    const int taker = ci.fMove;
+    const int doubler = taker ? 0 : 1;
+
+    cubeinfo ciTake = ci;
+    ciTake.nCube = ci.nCube * 2;
+    ciTake.fCubeOwner = taker;
+    ciTake.fMove = taker;
+
+    cubeinfo ciDrop = ci;
+    ciDrop.nCube = ci.nCube;
+    ciDrop.fCubeOwner = doubler;
+    ciDrop.fMove = doubler;
+
+    float arTake[NUM_ROLLOUT_OUTPUTS];
+    float arDrop[NUM_ROLLOUT_OUTPUTS];
+    float arStdDev[NUM_ROLLOUT_OUTPUTS];
+    rolloutstat arsStatistics[2];
+
+    static evalsetup esTake;
+    esTake.et = EVAL_EVAL;
+    evalcontext ecTake = g_eval_context;
+    ecTake.fCubeful = TRUE;
+    esTake.ec = ecTake;
+
+    static evalsetup esDrop;
+    esDrop.et = EVAL_EVAL;
+    evalcontext ecDrop = g_eval_context;
+    ecDrop.fCubeful = TRUE;
+    esDrop.ec = ecDrop;
+
+    if (GeneralEvaluation(arTake, arStdDev, arsStatistics, (ConstTanBoard)board, &ciTake, &esTake, NULL, NULL) < 0)
+        return -1;
+    if (GeneralEvaluation(arDrop, arStdDev, arsStatistics, (ConstTanBoard)board, &ciDrop, &esDrop, NULL, NULL) < 0)
+        return -1;
+
+    /* Utility returns the equity for the player to move (fMove). For ciTake the
+     * player to move is the taker; for ciDrop it is the doubler, so the taker's
+     * drop equity is the NEGATIVE of the doubler's equity (zero-sum). */
+    float eq_take = Utility(arTake, &ciTake);
+    float eq_drop = -Utility(arDrop, &ciDrop);
+
+    equities[0] = eq_take;
+    equities[1] = eq_drop;
+    return eq_take > eq_drop ? 2 : 0; /* 2 = take, 0 = drop */
 }
 
 /* Resignation verdict using gnubg's own getResignation +
@@ -255,7 +308,9 @@ int gnubg_hint_resign(TanBoard board, void *cube_info, void *eval_setup,
 
     static evalsetup esDefault;
     esDefault.et = EVAL_EVAL;
-    esDefault.ec = (evalcontext){ FALSE, 0, FALSE, TRUE, 0.0 };
+    evalcontext ec = g_eval_context;
+    ec.fCubeful = FALSE;
+    esDefault.ec = ec;
     const evalsetup *es =
         eval_setup ? (const evalsetup *)eval_setup : &esDefault;
 
@@ -271,6 +326,53 @@ int gnubg_hint_resign(TanBoard board, void *cube_info, void *eval_setup,
     out[1] = rBefore;
     out[2] = rAfter;
     return nResigned;
+}
+
+/* Evaluate the DECIDER's equities for a specific offered concession.
+ * Uses the same evaluation setup as gnubg_hint_resign but at the offered
+ * value instead of gnubg's own verdict, so consumers can apply
+ * external.c's accept rule (rEqAfter < rEqBefore) themselves. */
+int gnubg_hint_resign_offered(TanBoard board, void *cube_info,
+                              int nResigned, void *hint_out) {
+    if (!g_initialized || !cube_info || !hint_out)
+        return -1;
+
+    ensure_thread_local_data();
+
+    cubeinfo ci = *(cubeinfo *)cube_info;
+    float *out = (float *)hint_out;
+
+    float arResign[NUM_ROLLOUT_OUTPUTS];
+    {
+        /* Same machinery as gnubg_hint_resign: getResignation evaluates the
+         * position (honouring g_eval_context) and classifies the loss. */
+        static evalsetup esDefault;
+        esDefault.et = EVAL_EVAL;
+        evalcontext ec = g_eval_context;
+        ec.fCubeful = FALSE;
+        esDefault.ec = ec;
+        int rcR = getResignation(arResign, board, &ci, &esDefault);
+        fprintf(stderr, "[resign_offered] rc=%d ar=[%.3f %.3f %.3f %.3f %.3f] fMove=%d cube=%d owner=%d matchTo=%d score=[%d %d] \n",
+                rcR, arResign[0], arResign[1], arResign[2], arResign[3], arResign[4],
+                ci.fMove, ci.nCube, ci.fCubeOwner, ci.nMatchTo, ci.anScore[0], ci.anScore[1]);
+        if (rcR < 0)
+            return -1;
+    }
+
+    float rBefore = 0.0f, rAfter = 0.0f;
+    getResignEquities(arResign, &ci, nResigned, &rBefore, &rAfter);
+
+    /* gnubg's own accept/reject rule (vendor/core/external.c): the responder
+     * accepts iff the opponent gives up equity by resigning — i.e. the
+     * post-concession equity is worse than playing on, within a tiny epsilon.
+     * We DO NOT re-derive this in the adapter; this is gnubg's verdict. */
+    const float epsilon = 1.0e-6f;
+    int accept = (rAfter - epsilon) < rBefore ? 1 : 0;
+
+    out[0] = rBefore;
+    out[1] = rAfter;
+    out[2] = (float)accept;
+    return 0;
 }
 
 const char *gnubg_position_id(const TanBoard board) {

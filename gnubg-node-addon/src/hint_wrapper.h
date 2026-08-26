@@ -44,6 +44,12 @@ struct HintRequest {
     // activePlayerColor for resign hints.
     int fMoveOverride = -1;
 
+    // Optional offered concession for resign hints. When present (>0),
+    // getResignHint skips its own getResignation verdict and reports
+    // equityBefore/equityAfter for THIS concession size, letting the caller
+    // apply external.c's rule: accept iff rEqAfter < rEqBefore.
+    int offeredPoints = 0;
+
     // Functional factory method from JS object
     static HintRequest fromJsObject(const Napi::Object& obj);
 };
@@ -98,6 +104,7 @@ struct ResignHint {
     int resignedPoints;  // 0 = none, 1/2/3 = single/gammon/backgammon
     double equityBefore; // resigner's equity playing on
     double equityAfter;  // resigner's equity after the concession
+    int decision;        // gnubg's accept/reject verdict: 1 = accept, 0 = reject
 
     Napi::Object toJsObject(Napi::Env env) const;
 };

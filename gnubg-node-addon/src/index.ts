@@ -124,6 +124,13 @@ export interface HintRequest {
    * declare the RESIGNER as activePlayerColor for resign hints.
    */
   fMoveOverride?: number
+  /**
+   * Offered concession (1/2/3) for resign hints. When present, the hint
+   * reports equityBefore/equityAfter for THIS concession size instead of
+   * gnubg's own resignation verdict; apply external.c's rule:
+   * accept iff equityAfter < equityBefore.
+   */
+  offeredPoints?: number
 }
 
 /**
@@ -192,6 +199,11 @@ export interface ResignHint {
   equityBefore: number
   /** Resigner's equity after the concession. */
   equityAfter: number
+  /** gnubg's accept/reject verdict for an offered concession:
+   *  true = accept the offer, false = reject. Only meaningful when
+   *  offeredPoints was supplied; the adapter must relay this rather than
+   *  re-deriving the decision. */
+  decision?: boolean
 }
 
 /**
@@ -447,6 +459,7 @@ export class GnuBgHints {
           crawford: request.crawford,
           jacoby: request.jacoby,
           beavers: request.beavers,
+          fMoveOverride: request.fMoveOverride ?? -1,
         },
         (err: Error | null, hint: any) => {
           if (err) {
@@ -502,6 +515,7 @@ export class GnuBgHints {
           crawford: request.crawford,
           jacoby: request.jacoby,
           beavers: request.beavers,
+          fMoveOverride: request.fMoveOverride ?? -1,
         },
         (err: Error | null, hint: any) => {
           if (err) {
@@ -570,6 +584,8 @@ export class GnuBgHints {
           crawford: request.crawford,
           jacoby: request.jacoby,
           beavers: request.beavers,
+          fMoveOverride: request.fMoveOverride ?? -1,
+          offeredPoints: request.offeredPoints ?? 0,
         },
         (err: Error | null, hint: any) => {
           if (err) {
@@ -1179,6 +1195,7 @@ export class GnuBgHints {
       resignedPoints: gnubgHint.resignedPoints,
       equityBefore: gnubgHint.equityBefore,
       equityAfter: gnubgHint.equityAfter,
+      decision: gnubgHint.decision === undefined ? undefined : gnubgHint.decision === 1,
     }
   }
 }
