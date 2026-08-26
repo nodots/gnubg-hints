@@ -451,7 +451,7 @@ DoubleHint HintWrapper::getDoubleHint(const HintRequest& request) {
     }
 
     int scores[2] = {request.matchScore[0], request.matchScore[1]};
-    SetCubeInfo(&ci, request.cubeValue, request.cubeOwner, 0, request.matchLength, scores,
+    SetCubeInfo(&ci, request.cubeValue, request.cubeOwner, 1, request.matchLength, scores,
                 request.crawford ? 1 : 0, request.jacoby ? 1 : 0,
                 request.beavers ? 1 : 0, bgvDefault);
 
@@ -537,7 +537,7 @@ TakeHint HintWrapper::getTakeHint(const HintRequest& request) {
     }
 
     int scores[2] = {request.matchScore[0], request.matchScore[1]};
-    SetCubeInfo(&ci, request.cubeValue, request.cubeOwner, 0, request.matchLength, scores,
+    SetCubeInfo(&ci, request.cubeValue, request.cubeOwner, 1, request.matchLength, scores,
                 request.crawford ? 1 : 0, request.jacoby ? 1 : 0,
                 request.beavers ? 1 : 0, bgvDefault);
 
@@ -570,12 +570,11 @@ TakeHint HintWrapper::getTakeHint(const HintRequest& request) {
         };
 
         result.action = determineAction(gnubgResult);
-        // arDouble's OUTPUT_TAKE/OUTPUT_DROP are equities for the player on
-        // roll in `ci` -- the potential doubler. TakeHint reports the TAKER's
-        // side, so negate (drop becomes -1 for the taker).
-        result.takeEquity = -equities[0];
-        result.dropEquity = -equities[1];
-        result.eval.equity = -equities[0];
+        // With fMove=1 the on-roll player in `ci` IS activePlayer (the
+        // taker), so OUTPUT_TAKE/OUTPUT_DROP are already taker-side.
+        result.takeEquity = equities[0];
+        result.dropEquity = equities[1];
+        result.eval.equity = equities[0];
     } else {
         result.action = "drop";
         result.takeEquity = -2.0;
@@ -720,7 +719,7 @@ ResignHint HintWrapper::getResignHint(const HintRequest& request) {
     }
 
     int scores[2] = {request.matchScore[0], request.matchScore[1]};
-    SetCubeInfo(&ci, request.cubeValue, request.cubeOwner, 0,
+    SetCubeInfo(&ci, request.cubeValue, request.cubeOwner, 1,
                 request.matchLength, scores,
                 request.crawford ? 1 : 0, request.jacoby ? 1 : 0,
                 request.beavers ? 1 : 0, bgvDefault);
