@@ -34,6 +34,16 @@ struct HintRequest {
     std::string positionId;  // Optional GNU Backgammon position ID
     bool hasBoard = false;
 
+    // Optional explicit on-roll seat for cube/resign hints.
+    //   -1 (default) → legacy behavior: player 0 (board[0], the opponent of
+    //                  activePlayerColor) is on roll
+    //    0           → board[0]'s player is on roll
+    //    1           → board[1]'s player (= activePlayerColor) is on roll
+    // Consumers that want a verdict for activePlayer itself should pass 1
+    // for take/double hints, and 1 with the RESIGNER declared as
+    // activePlayerColor for resign hints.
+    int fMoveOverride = -1;
+
     // Functional factory method from JS object
     static HintRequest fromJsObject(const Napi::Object& obj);
 };

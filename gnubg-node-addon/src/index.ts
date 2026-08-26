@@ -112,6 +112,18 @@ export interface HintRequest {
   crawford: boolean
   jacoby: boolean
   beavers: boolean
+  /**
+   * Explicit on-roll seat for cube/resign hints.
+   *   -1 or omitted → legacy behavior (board[0]'s player is on roll)
+   *    0            → the opponent of activePlayerColor is on roll
+   *    1            → activePlayerColor is on roll
+   *
+   * Take/double hints evaluate the doubling decision for the on-roll
+   * player; resign hints evaluate whether that player should concede.
+   * Pass 1 when you want the verdict for activePlayerColor itself, and
+   * declare the RESIGNER as activePlayerColor for resign hints.
+   */
+  fMoveOverride?: number
 }
 
 /**

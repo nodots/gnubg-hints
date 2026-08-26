@@ -242,6 +242,12 @@ HintRequest HintRequest::fromJsObject(const Napi::Object& obj) {
         request.positionId = "";  // Default to empty string
     }
 
+    // Extract explicit on-roll seat override for cube/resign hints.
+    // Absent → -1 (legacy: board[0]'s player is on roll).
+    request.fMoveOverride = obj.Has("fMoveOverride")
+        ? obj.Get("fMoveOverride").As<Napi::Number>().Int32Value()
+        : -1;
+
     return request;
 }
 
@@ -451,7 +457,9 @@ DoubleHint HintWrapper::getDoubleHint(const HintRequest& request) {
     }
 
     int scores[2] = {request.matchScore[0], request.matchScore[1]};
-    SetCubeInfo(&ci, request.cubeValue, request.cubeOwner, 1, request.matchLength, scores,
+    SetCubeInfo(&ci, request.cubeValue, request.cubeOwner,
+                    request.fMoveOverride >= 0 ? request.fMoveOverride : 0,
+                    request.matchLength, scores,
                 request.crawford ? 1 : 0, request.jacoby ? 1 : 0,
                 request.beavers ? 1 : 0, bgvDefault);
 
@@ -537,7 +545,9 @@ TakeHint HintWrapper::getTakeHint(const HintRequest& request) {
     }
 
     int scores[2] = {request.matchScore[0], request.matchScore[1]};
-    SetCubeInfo(&ci, request.cubeValue, request.cubeOwner, 1, request.matchLength, scores,
+    SetCubeInfo(&ci, request.cubeValue, request.cubeOwner,
+                    request.fMoveOverride >= 0 ? request.fMoveOverride : 0,
+                    request.matchLength, scores,
                 request.crawford ? 1 : 0, request.jacoby ? 1 : 0,
                 request.beavers ? 1 : 0, bgvDefault);
 
@@ -719,7 +729,8 @@ ResignHint HintWrapper::getResignHint(const HintRequest& request) {
     }
 
     int scores[2] = {request.matchScore[0], request.matchScore[1]};
-    SetCubeInfo(&ci, request.cubeValue, request.cubeOwner, 1,
+    SetCubeInfo(&ci, request.cubeValue, request.cubeOwner,
+                request.fMoveOverride >= 0 ? request.fMoveOverride : 0,
                 request.matchLength, scores,
                 request.crawford ? 1 : 0, request.jacoby ? 1 : 0,
                 request.beavers ? 1 : 0, bgvDefault);
