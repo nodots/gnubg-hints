@@ -234,28 +234,29 @@ int gnubg_hint_take(TanBoard board, void *cube_info, void *hint_out) {
     ensure_thread_local_data();
 
     cubeinfo ci = *(cubeinfo *)cube_info;
-    // gnubg's own take-decision path (external.c: CommandAccept) mirrors the
-    // board so the OFFEREE (taker) becomes the player on roll, then evaluates
-    // the cube decision from that side. Without the side swap, GeneralCube-
-    // DecisionE decides the taker's (wrong) double and returns a degenerate
-    // NODOUBLE_TAKE → "take" for hopeless takers. After SwapSides the taker
-    // sits at index 0; keep fMove = 1 (the on-roll doubler, matching
-    // external.c's fTurn = 1) so FindCubeDecision yields the correct take/drop
-    // cubedecision enum.
-    SwapSides(board);
-    if (ci.fCubeOwner != -1)
-        ci.fCubeOwner = ci.fCubeOwner ? 0 : 1;
-    ci.fMove = 1;
+    // Seat contract:
+    //   fMoveOverride == 1 → evaluate the take/drop from the offeree (taker)
+    //     seat, mirroring external.c CommandAccept: SwapSides so the offeree
+    //     becomes on-roll, flip the cube owner, then ask gnubg's own
+    //     FindCubeDecision (which yields the correct TAKE/PASS/BEAVER enum).
+    //   fMoveOverride <= 0 → legacy behavior preserved: no side-swap, evaluate
+    //     for the seat the adapter's ci.fMove already selects. Used by old
+    //     callers that relied on the pre-fix board orientation.
+    if (ci.fMove == 1) {
+        SwapSides(board);
+        if (ci.fCubeOwner != -1)
+            ci.fCubeOwner = ci.fCubeOwner ? 0 : 1;
+    }
     float *equities = (float *)hint_out;
 
     return evaluate_cube(board, &ci, NULL, &equities[0], &equities[1]);
 }
 
 /* Resignation verdict using gnubg's own getResignation +
- * getResignEquities (vendor/core/rollout.c). eval_setup is optional:
- * NULL mirrors what gnubg's computer player uses in play.c (EVAL_EVAL,
- * 0-ply) — resignation checks there are deliberately cheap. */
-int gnubg_hint_resign(TanBoard board, void *cube_info, void *eval_setup,
+ * getResignEquities (vendor/core/rollout.c). gnubg evaluates resignation
+ * for the on-roll seat; callers declare the resigner active (fMoveOverride:1).
+ * Uses g_eval_context so the configured difficulty plies apply. */
+int gnubg_hint_resign(TanBoard board, void *cube_info,
                       void *hint_out) {
     if (!g_initialized || !cube_info || !hint_out)
         return -1;
@@ -265,19 +266,24 @@ int gnubg_hint_resign(TanBoard board, void *cube_info, void *eval_setup,
     cubeinfo ci = *(cubeinfo *)cube_info;
     float *out = (float *)hint_out;
 
-    static evalsetup esDefault;
-    esDefault.et = EVAL_EVAL;
-    esDefault.ec = (evalcontext){ FALSE, 0, FALSE, TRUE, 0.0 };
-    const evalsetup *es =
-        eval_setup ? (const evalsetup *)eval_setup : &esDefault;
+    /* Stack-local esResign honours the configured difficulty (g_eval_context);
+     * mirrors play.c's esResign pattern. */
+    evalsetup esResign;
+    esResign.et = EVAL_EVAL;
+    esResign.ec = g_eval_context;
 
     float arResign[NUM_ROLLOUT_OUTPUTS];
-    int nResigned = getResignation(arResign, board, &ci, es);
+    int nResigned = getResignation(arResign, board, &ci, &esResign);
     if (nResigned < 0)
         return -1;
 
+    /* equityAfter is only meaningful for nResigned >= 1 (a real offer).
+     * For 0 (no resignation warranted) there is no concession to price —
+     * leave both zero so consumers don't see a garbage ~-1 through the
+     * zero-initialised arResign. */
     float rBefore = 0.0f, rAfter = 0.0f;
-    getResignEquities(arResign, &ci, nResigned, &rBefore, &rAfter);
+    if (nResigned > 0)
+        getResignEquities(arResign, &ci, nResigned, &rBefore, &rAfter);
 
     out[0] = (float)nResigned; /* 0 = none, 1/2/3 = single/gammon/backgammon */
     out[1] = rBefore;
@@ -302,8 +308,9 @@ int gnubg_hint_resign_offered(TanBoard board, void *cube_info,
     float arResign[NUM_ROLLOUT_OUTPUTS];
     {
         /* Same machinery as gnubg_hint_resign: getResignation evaluates the
-         * position (honouring g_eval_context) and classifies the loss. */
-        static evalsetup esDefault;
+         * position (honouring g_eval_context) and classifies the loss.
+         * Stack-local evalsetup — static would race across libuv workers. */
+        evalsetup esDefault;
         esDefault.et = EVAL_EVAL;
         evalcontext ec = g_eval_context;
         ec.fCubeful = FALSE;

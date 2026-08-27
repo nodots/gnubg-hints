@@ -3,11 +3,17 @@
  * getResignation + getResignEquities from rollout.c. The engine decides;
  * no consumer-side thresholds.
  *
- * IMPORTANT request semantics: the player ON ROLL in the request must be
- * the DOUBLER/WINNER-TO-BE (the side whose opponent wants to resign).
- * gnubg evaluates "should the player NOT on roll resign" from that seat,
- * and resignedPoints is how many points the RESIGNER should concede
- * (0 = play on, 1 = single, 2 = gammon, 3 = backgammon).
+ * IMPORTANT request semantics: declare the RESIGNER as the on-roll player
+ * via fMoveOverride:1 (activePlayerColor = resigner). gnubg evaluates the
+ * resignation from the resigner's seat, and resignedPoints is how many
+ * points the RESIGNER should concede (0 = play on, 1 = single, 2 = gammon,
+ * 3 = backgammon). With offeredPoints set (1/2/3), the hint instead reports
+ * the decider's equityBefore/equityAfter and gnubg's accept/reject verdict
+ * (decision: 1 = accept, 0 = reject) via external.c's rule.
+ *
+ * NOTE (PR #39): per #39's review, the consumer should pass fMoveOverride:1
+ * to evaluate the resigner's seat (not board[0]'s player); a mismatched
+ * fMove makes Utility() index the wrong gammon price in match play.
  */
 import { GnuBgHints } from '../src';
 import type { HintRequest } from '../src';
@@ -71,6 +77,10 @@ describe('getResignHint — gnubg-native resignation verdicts', () => {
       crawford: false,
       jacoby: false,
       beavers: true,
+      fMoveOverride: 1,
+      // The fixture builds a sparse nodots board (bar/off frames only) whose
+      // shape is structurally correct for the fork's request → TanBoard
+      // conversion, but is narrower than HintRequest's full surface.
     } as unknown as HintRequest;
   }
 
@@ -96,6 +106,8 @@ describe('getResignHint — gnubg-native resignation verdicts', () => {
       resignedPoints: 2,
       equityBefore: -1.4,
       equityAfter: -2,
+      decision: undefined,
+      hasDecision: false,
     });
   });
 
@@ -128,12 +140,35 @@ describe('getResignHint — gnubg-native resignation verdicts', () => {
     expect(hint.equityBefore).toBeLessThanOrEqual(-1);
   });
 
-  it('reports no resignation when the race is merely hopeless but contact-free escape exists', async () => {
-    // Black has all 15 checkers stacked at ccw point 6 (mid-board, not
-    // trapped); white is fully home. Black loses the race but can still
-    // avoid being hit — gnubg reports no forced resignation below a loss.
-    const req = buildBoard(0, { 6: 15 }, {});
-    const hint = await hints.getResignHint(req);
-    expect(hint.resignedPoints).toBeGreaterThanOrEqual(0);
+  it('reports gnubg decision (accept/reject) for an offered resignation', async () => {
+    // Dead-lost resigner (14 off + 1 deep, opponent in home board): gnubg
+    // reports decision=true (decider accepts the concession — resigner gives
+    // up equity by conceding immediately rather than playing on).
+    const losingReq = buildBoard(
+      14,
+      { 1: 1 },
+      { 22: 2, 23: 2, 13: 11 }
+    ) as any;
+    losingReq.fMoveOverride = 1;
+    losingReq.offeredPoints = 3;
+    const losing = await hints.getResignHint(losingReq);
+    expect(losing.hasDecision).toBe(true);
+    // The numeric contract matches the fork's C-side rule exactly:
+    // accept iff equityAfter - 1e-6 < equityBefore (external.c, with epsilon).
+    const accepts = (h: any) => h.equityAfter - 1e-6 < h.equityBefore;
+    expect(losing.decision).toBe(accepts(losing));
+
+    // Second position to pin the contract in the opposite direction: a close
+    // race where conceding 1 point is clearly worse than playing on.
+    const winningReq = buildBoard(
+      0,
+      { 19: 2, 20: 2, 21: 2, 22: 2, 23: 2, 24: 2, 18: 3 },
+      {}
+    ) as any;
+    winningReq.fMoveOverride = 1;
+    winningReq.offeredPoints = 1;
+    const winning = await hints.getResignHint(winningReq);
+    expect(winning.hasDecision).toBe(true);
+    expect(winning.decision).toBe(accepts(winning));
   });
 });

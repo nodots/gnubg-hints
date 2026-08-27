@@ -204,6 +204,9 @@ export interface ResignHint {
    *  offeredPoints was supplied; the adapter must relay this rather than
    *  re-deriving the decision. */
   decision?: boolean
+  /** true iff `decision` was produced (i.e. offeredPoints was supplied).
+   *  Absent in gnubg's own-verdict mode. */
+  hasDecision?: boolean
 }
 
 /**
@@ -1196,6 +1199,7 @@ export class GnuBgHints {
       equityBefore: gnubgHint.equityBefore,
       equityAfter: gnubgHint.equityAfter,
       decision: gnubgHint.decision === undefined ? undefined : gnubgHint.decision === 1,
+      hasDecision: gnubgHint.hasDecision === true,
     }
   }
 }
