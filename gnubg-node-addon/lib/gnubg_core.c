@@ -234,6 +234,18 @@ int gnubg_hint_take(TanBoard board, void *cube_info, void *hint_out) {
     ensure_thread_local_data();
 
     cubeinfo ci = *(cubeinfo *)cube_info;
+    // gnubg's own take-decision path (external.c: CommandAccept) mirrors the
+    // board so the OFFEREE (taker) becomes the player on roll, then evaluates
+    // the cube decision from that side. Without the side swap, GeneralCube-
+    // DecisionE decides the taker's (wrong) double and returns a degenerate
+    // NODOUBLE_TAKE → "take" for hopeless takers. After SwapSides the taker
+    // sits at index 0; keep fMove = 1 (the on-roll doubler, matching
+    // external.c's fTurn = 1) so FindCubeDecision yields the correct take/drop
+    // cubedecision enum.
+    SwapSides(board);
+    if (ci.fCubeOwner != -1)
+        ci.fCubeOwner = ci.fCubeOwner ? 0 : 1;
+    ci.fMove = 1;
     float *equities = (float *)hint_out;
 
     return evaluate_cube(board, &ci, NULL, &equities[0], &equities[1]);
