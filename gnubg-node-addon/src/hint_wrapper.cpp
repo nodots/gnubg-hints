@@ -567,23 +567,36 @@ TakeHint HintWrapper::getTakeHint(const HintRequest& request) {
         // compared arDouble equities, which are from the DOUBLER's
         // perspective, so it answered backwards.
         auto determineAction = [](int decision) -> std::string {
+            // Mirror gnubg's own external.c CommandAccept switch: the TAKE
+            // family (DOUBLE_TAKE, NODOUBLE_TAKE, TOOGOOD_TAKE, the REDOUBLE/
+            // DEADCUBE/OPTIONAL variants) means the offeree should TAKE; the
+            // PASS family means DROP; the BEAVER family means BEAVER.
+            // NOTE: cubedecision enum value 0 is DOUBLE_TAKE (a take), NOT a
+            // drop — mapping it to "drop" inverts the verdict.
             switch (decision) {
                 case DOUBLE_BEAVER:
                 case NODOUBLE_BEAVER:
+                case NO_REDOUBLE_BEAVER:
                 case OPTIONAL_DOUBLE_BEAVER:
                     return "beaver";
                 case DOUBLE_PASS:
-                case REDOUBLE_PASS:
                 case TOOGOOD_PASS:
+                case REDOUBLE_PASS:
                 case TOOGOODRE_PASS:
                 case OPTIONAL_DOUBLE_PASS:
                 case OPTIONAL_REDOUBLE_PASS:
                     return "drop";
-                case 2: /* TAKE — gnubg_hint_take returns 2 when the taker's
-                           cubeful equity after taking beats after dropping */
+                case DOUBLE_TAKE:
+                case NODOUBLE_TAKE:
+                case TOOGOOD_TAKE:
+                case REDOUBLE_TAKE:
+                case NO_REDOUBLE_TAKE:
+                case TOOGOODRE_TAKE:
+                case NODOUBLE_DEADCUBE:
+                case NO_REDOUBLE_DEADCUBE:
+                case OPTIONAL_DOUBLE_TAKE:
+                case OPTIONAL_REDOUBLE_TAKE:
                     return "take";
-                case 0: /* DROP — taker is better off declining */
-                    return "drop";
                 default:
                     return "take";
             }
