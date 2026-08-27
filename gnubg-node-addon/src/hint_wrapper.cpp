@@ -110,6 +110,40 @@ bool decode_position_id(const std::string& positionId, TanBoard board) {
     return playerIndex == 2 && pointIndex == 0;
 }
 
+// Shared request → (TanBoard, cubeinfo) conversion used by getMoveHints,
+// getDoubleHint, getTakeHint and getResignHint (PR #39 finding: the four
+// hand-copied blocks had already drifted — differing fMove defaults and
+// decode-failure messages). A single source means the next board-decoding
+// or cube-setup fix (e.g. a #36-style side-order incident) lands once.
+// defaultFMove selects the on-roll seat when the caller did not pass an
+// explicit fMoveOverride: getMoveHints=1 (active), double/take default 0
+// (legacy), resign=1 (resigner on roll). Throws on invalid input.
+void requestToBoardAndCube(const gnubg_addon::HintRequest& request,
+                           TanBoard& board,
+                           cubeinfo& ci, int defaultFMove) {
+    if (!request.hasBoard && request.positionId.empty()) {
+        throw std::runtime_error("Invalid board data");
+    }
+
+    if (request.hasBoard) {
+        for (int player = 0; player < 2; player++) {
+            for (int point = 0; point < 25; point++) {
+                board[player][point] = request.board[player][point];
+            }
+        }
+    } else if (!decode_position_id(request.positionId, board)) {
+        throw std::runtime_error("Failed to decode position ID");
+    }
+
+    const int fMove =
+        request.fMoveOverride >= 0 ? request.fMoveOverride : defaultFMove;
+    int scores[2] = {request.matchScore[0], request.matchScore[1]};
+    SetCubeInfo(&ci, request.cubeValue, request.cubeOwner, fMove,
+                request.matchLength, scores,
+                request.crawford ? 1 : 0, request.jacoby ? 1 : 0,
+                request.beavers ? 1 : 0, bgvDefault);
+}
+
 } // anonymous namespace
 
 namespace gnubg_addon {
@@ -315,7 +349,9 @@ Napi::Object ResignHint::toJsObject(Napi::Env env) const {
     obj.Set("resignedPoints", Napi::Number::New(env, resignedPoints));
     obj.Set("equityBefore", Napi::Number::New(env, equityBefore));
     obj.Set("equityAfter", Napi::Number::New(env, equityAfter));
-    obj.Set("decision", Napi::Number::New(env, decision));
+    obj.Set("hasDecision", Napi::Boolean::New(env, hasDecision));
+    if (hasDecision)
+        obj.Set("decision", Napi::Number::New(env, decision));
     return obj;
 }
 
@@ -356,29 +392,11 @@ std::vector<Move> HintWrapper::getMoveHints(const HintRequest& request, int maxH
         throw std::runtime_error("GnuBgHints not initialized");
     }
 
-    if (!request.hasBoard && request.positionId.empty()) {
-        throw std::runtime_error("Invalid board data");
-    }
-
     // Convert HintRequest to GNU Backgammon format
     TanBoard board;
     int dice[2] = {request.dice[0], request.dice[1]};
     cubeinfo ci;
-
-    if (request.hasBoard) {
-        for (int player = 0; player < 2; player++) {
-            for (int point = 0; point < 25; point++) {
-                board[player][point] = request.board[player][point];
-            }
-        }
-    } else if (!decode_position_id(request.positionId, board)) {
-        throw std::runtime_error("Invalid position ID");
-    }
-
-    int scores[2] = {request.matchScore[0], request.matchScore[1]};
-    SetCubeInfo(&ci, request.cubeValue, request.cubeOwner, 1, request.matchLength, scores,
-                request.crawford ? 1 : 0, request.jacoby ? 1 : 0,
-                request.beavers ? 1 : 0, bgvDefault);
+    requestToBoardAndCube(request, board, ci, /*defaultFMove=*/1);
 
     // Get move hints from GNU Backgammon
     movelist ml;
@@ -443,30 +461,9 @@ DoubleHint HintWrapper::getDoubleHint(const HintRequest& request) {
         throw std::runtime_error("GnuBgHints not initialized");
     }
 
-    if (!request.hasBoard && request.positionId.empty()) {
-        throw std::runtime_error("Invalid board data");
-    }
-
-    // Convert HintRequest to GNU Backgammon format
     TanBoard board;
     cubeinfo ci;
-
-    if (request.hasBoard) {
-        for (int player = 0; player < 2; player++) {
-            for (int point = 0; point < 25; point++) {
-                board[player][point] = request.board[player][point];
-            }
-        }
-    } else if (!decode_position_id(request.positionId, board)) {
-        throw std::runtime_error("Failed to decode position ID");
-    }
-
-    int scores[2] = {request.matchScore[0], request.matchScore[1]};
-    SetCubeInfo(&ci, request.cubeValue, request.cubeOwner,
-                    request.fMoveOverride >= 0 ? request.fMoveOverride : 0,
-                    request.matchLength, scores,
-                request.crawford ? 1 : 0, request.jacoby ? 1 : 0,
-                request.beavers ? 1 : 0, bgvDefault);
+    requestToBoardAndCube(request, board, ci, /*defaultFMove=*/0);
 
     // Get double hint from GNU Backgammon
     float equity = 0.0f;
@@ -531,30 +528,9 @@ TakeHint HintWrapper::getTakeHint(const HintRequest& request) {
         throw std::runtime_error("GnuBgHints not initialized");
     }
 
-    if (!request.hasBoard && request.positionId.empty()) {
-        throw std::runtime_error("Invalid board data");
-    }
-
-    // Convert HintRequest to GNU Backgammon format
     TanBoard board;
     cubeinfo ci;
-
-    if (request.hasBoard) {
-        for (int player = 0; player < 2; player++) {
-            for (int point = 0; point < 25; point++) {
-                board[player][point] = request.board[player][point];
-            }
-        }
-    } else if (!decode_position_id(request.positionId, board)) {
-        throw std::runtime_error("Failed to decode position ID");
-    }
-
-    int scores[2] = {request.matchScore[0], request.matchScore[1]};
-    SetCubeInfo(&ci, request.cubeValue, request.cubeOwner,
-                    request.fMoveOverride >= 0 ? request.fMoveOverride : 0,
-                    request.matchLength, scores,
-                request.crawford ? 1 : 0, request.jacoby ? 1 : 0,
-                request.beavers ? 1 : 0, bgvDefault);
+    requestToBoardAndCube(request, board, ci, /*defaultFMove=*/0);
 
     // Get take hint from GNU Backgammon
     float equities[2] = {0.0f, -1.0f};
@@ -734,38 +710,29 @@ ResignHint HintWrapper::getResignHint(const HintRequest& request) {
     if (!s_initialized) {
         throw std::runtime_error("GnuBgHints not initialized");
     }
-    if (!request.hasBoard && request.positionId.empty()) {
-        throw std::runtime_error("Invalid board data");
-    }
 
     TanBoard board;
     cubeinfo ci;
-
-    if (request.hasBoard) {
-        for (int player = 0; player < 2; player++) {
-            for (int point = 0; point < 25; point++) {
-                board[player][point] = request.board[player][point];
-            }
-        }
-    } else if (!decode_position_id(request.positionId, board)) {
-        throw std::runtime_error("Failed to decode position ID");
-    }
-
-    int scores[2] = {request.matchScore[0], request.matchScore[1]};
-    SetCubeInfo(&ci, request.cubeValue, request.cubeOwner,
-                request.fMoveOverride >= 0 ? request.fMoveOverride : 0,
-                request.matchLength, scores,
-                request.crawford ? 1 : 0, request.jacoby ? 1 : 0,
-                request.beavers ? 1 : 0, bgvDefault);
+    // gnubg evaluates resignation for the ON-ROLL seat; the resigner is the
+    // one whose resignation is being queried, so default to fMove=1 (the
+    // declared activePlayerColor/seat). Callers can override via fMoveOverride.
+    requestToBoardAndCube(request, board, ci, /*defaultFMove=*/1);
 
     // gnubg's own resignation logic: GeneralEvaluation + Utility
     // comparisons against the concession (rollout.c getResignation).
     float out[3] = {0.0f, 0.0f, 0.0f};
 
     if (request.offeredPoints > 0) {
-        // Caller supplied the offered concession: report the decider's
-        // equities before/after THIS concession so they can apply
-        // external.c's accept rule themselves.
+        // Caller supplied the offered concession: the resigner must be the
+        // on-roll player (fMoveOverride:1) so getResignEquities answers for
+        // the resigner's seat. Only 1/2/3 are valid concessions; reject
+        // anything else rather than echoing unvalidated input.
+        if (request.offeredPoints < 1 || request.offeredPoints > 3) {
+            throw std::runtime_error(
+                "offeredPoints must be 1, 2, or 3 (single/gammon/backgammon)");
+        }
+        // Report the decider's equities before/after THIS concession so they
+        // can apply external.c's accept rule themselves.
         float out2[3] = {0.0f, 0.0f, 0.0f};
         int rc = gnubg_hint_resign_offered(board, &ci,
                                            request.offeredPoints, out2);
@@ -776,10 +743,11 @@ ResignHint HintWrapper::getResignHint(const HintRequest& request) {
         result.equityBefore = out2[0];
         result.equityAfter = out2[1];
         result.decision = (int)out2[2];
+        result.hasDecision = true;
         return result;
     }
 
-    int gnubgResult = gnubg_hint_resign(board, &ci, NULL, out);
+    int gnubgResult = gnubg_hint_resign(board, &ci, out);
     if (gnubgResult < 0) {
         throw std::runtime_error("gnubg resignation evaluation failed");
     }

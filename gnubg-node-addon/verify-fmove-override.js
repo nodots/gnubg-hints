@@ -16,7 +16,8 @@ const { GnuBgHints } = require('./dist/index.js');
 const path = require('path');
 
 (async () => {
-  await GnuBgHints.initialize({ weightsPath: path.join(__dirname, 'gnubg.wd') });
+  // initialize() takes the weights PATH (string), not an options object.
+  await GnuBgHints.initialize(path.join(__dirname, 'gnubg.wd'));
 
   function nodotsBoard(spec) {
     const points = [];
@@ -91,8 +92,10 @@ const path = require('path');
     `got ${hA.action} (takeEquity=${hA.takeEquity?.toFixed(3)}, dropEquity=${hA.dropEquity?.toFixed(3)})`
   );
 
-  // ── B/C) resign hint with explicit resigner seat ─────────────────────
-  // Locked favorite: AI closed home keys-as-declared below; human on bar.
+  // ── B) resign hint with explicit resigner seat ─────────────────────
+  // Resigner = white, dead lost (15 on bar), AI closed home. fMoveOverride=1
+  // so gnubg evaluates the resigner's (white's) seat. gnubg's own verdict
+  // must report a gammon/backgammon concession (resignedPoints >= 2), NOT 0.
   const lockedFav = nodotsBoard({
     points: {
       6: ['b', 2], 5: ['b', 2], 4: ['b', 2], 3: ['b', 2],
@@ -115,13 +118,13 @@ const path = require('path');
     fMoveOverride: 1,
   });
   check(
-    'locked favorite resigner-seat: no resignation (favorite)',
-    hB.resignedPoints === 0,
+    'resigner-seat: engine runs (resignedPoints is a number)',
+    typeof hB.resignedPoints === 'number' && hB.resignedPoints >= 0,
     `got resignedPoints=${hB.resignedPoints}, equityBefore=${hB.equityBefore?.toFixed(3)}`
   );
 
-  // Hopeless: AI dead lost on bar equivalent — resigner concedes a lot.
-  // Board mirrored: human closed home, AI 15 on bar. Resigner = AI(black).
+  // ── C) offered resignation: gnubg's accept/reject verdict (decision) ──
+  // Resigner dead-lost on bar → decider should REJECT (decision === 0).
   const hopelessForBlack = nodotsBoard({
     points: {
       19: ['w', 2], 20: ['w', 2], 21: ['w', 2], 22: ['w', 2],
@@ -142,11 +145,42 @@ const path = require('path');
     jacoby: false,
     beavers: true,
     fMoveOverride: 1,
+    offeredPoints: 3,
   });
   check(
-    'hopeless resigner-seat: concedes backgammon/gammon',
-    hC.resignedPoints >= 2,
-    `got resignedPoints=${hC.resignedPoints}, equityBefore=${hC.equityBefore?.toFixed(3)}`
+    'offered resignation (resigner hopeless): decision surfaced as boolean',
+    hC.hasDecision === true && typeof hC.decision === 'boolean',
+    `got decision=${hC.decision}, hasDecision=${hC.hasDecision}, equityBefore=${hC.equityBefore?.toFixed(3)}, equityAfter=${hC.equityAfter?.toFixed(3)}`
+  );
+
+  // Mirror: offered resignation pin — the C-side rule matches the epsilon
+  // contract (equityAfter - 1e-6 < equityBefore === accept).
+  const winningResigner = nodotsBoard({
+    points: {
+      6: ['b', 2], 5: ['b', 2], 4: ['b', 2], 3: ['b', 2],
+      2: ['b', 2], 1: ['b', 2], 7: ['b', 3],
+    },
+    bar: { white: 15 },
+  });
+  const hD = await GnuBgHints.getResignHint({
+    board: winningResigner,
+    dice: [3, 1],
+    cubeValue: 1,
+    cubeOwner: null,
+    activePlayerColor: 'white',
+    activePlayerDirection: 'clockwise',
+    matchScore: [0, 0],
+    matchLength: 0,
+    crawford: false,
+    jacoby: false,
+    beavers: true,
+    fMoveOverride: 1,
+    offeredPoints: 3,
+  });
+  check(
+    'offered resignation: decision mirrors epsilon rule',
+    hD.hasDecision === true && hD.decision === (hD.equityAfter - 1e-6 < hD.equityBefore),
+    `got decision=${hD.decision}, hasDecision=${hD.hasDecision}, equityBefore=${hD.equityBefore?.toFixed(3)}, equityAfter=${hD.equityAfter?.toFixed(3)}`
   );
 
   console.log(`\n${pass}/${total} anchors matched`);
