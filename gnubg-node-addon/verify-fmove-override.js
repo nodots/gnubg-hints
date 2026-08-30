@@ -5,12 +5,14 @@
 //  A) Dead race, money, cube 2 owned by white. Taker = black (~30% win).
 //     fMoveOverride=1 + activePlayer=black(taker) → must answer for the
 //     taker: taking at cube 2 loses ~1.9 → action "drop".
-//  B) Locked favorite: AI(ccw/black) closed home; human(white) 15 on bar.
-//     Resigner = white(human), on roll. fMoveOverride=1 +
-//     activePlayer=white(resigner) → resignedPoints should be ≥ 2
-//     (human loses a gammon ~always).
-//  C) Same as B but sanity: equityBefore should be strongly negative
-//     (resigner is dead lost).
+//  B) Closed-out contact position: white 15 on bar vs black's closed home.
+//     Resigner = white(human), on roll. contact (CLASS_CONTACT) is gated
+//     OUT of auto-resign by the CLASS_RACE gate (play.c:1265), so the hint
+//     must short-circuit to resignedPoints === 0 — not 0-by-convention but
+//     because the position class is above CLASS_RACE.
+//  C) Same as B but offered-path: gnubg's verdict for a full backgammon
+//     concession from a dead-lost resigner must ACCEPT (decision === true,
+//     rEqAfter −3 < rEqBefore). Not gated — the offered path stays ungated.
 
 const { GnuBgHints } = require('./dist/index.js');
 const path = require('path');
@@ -63,9 +65,11 @@ const path = require('path');
 
   let pass = 0;
   let total = 0;
+  let failed = 0;
   const check = (name, cond, extra) => {
     total++;
     if (cond) pass++;
+    else failed++;
     console.log(`${cond ? 'PASS' : 'FAIL'} ${name}${extra ? ' — ' + extra : ''}`);
   };
 
@@ -92,10 +96,10 @@ const path = require('path');
     `got ${hA.action} (takeEquity=${hA.takeEquity?.toFixed(3)}, dropEquity=${hA.dropEquity?.toFixed(3)})`
   );
 
-  // ── B) resign hint with explicit resigner seat ─────────────────────
-  // Resigner = white, dead lost (15 on bar), AI closed home. fMoveOverride=1
-  // so gnubg evaluates the resigner's (white's) seat. gnubg's own verdict
-  // must report a gammon/backgammon concession (resignedPoints >= 2), NOT 0.
+  // ── B) resign hint: CLASS_CONTACT short-circuits to 0 ────────────────
+  // Resigner = white (15 on bar), AI's home closed → CLASS_CONTACT. The
+  // CLASS_RACE gate (play.c:1265) excludes contact/crashed positions from
+  // auto-resign, so the hint MUST return resignedPoints === 0 (not a gammon).
   const lockedFav = nodotsBoard({
     points: {
       6: ['b', 2], 5: ['b', 2], 4: ['b', 2], 3: ['b', 2],
@@ -118,13 +122,15 @@ const path = require('path');
     fMoveOverride: 1,
   });
   check(
-    'resigner-seat: engine runs (resignedPoints is a number)',
-    typeof hB.resignedPoints === 'number' && hB.resignedPoints >= 0,
+    'resigner-seat contact position: gated OUT (resignedPoints === 0)',
+    hB.resignedPoints === 0,
     `got resignedPoints=${hB.resignedPoints}, equityBefore=${hB.equityBefore?.toFixed(3)}`
   );
 
   // ── C) offered resignation: gnubg's accept/reject verdict (decision) ──
-  // Resigner dead-lost on bar → decider should REJECT (decision === 0).
+  // Resigner (black) dead-lost on the bar; white has a closed home. A full
+  // backgammon concession is offered → gnubg ACCEPTS (decision === true,
+  // rEqAfter −3 < rEqBefore). The offered path is NOT gated.
   const hopelessForBlack = nodotsBoard({
     points: {
       19: ['w', 2], 20: ['w', 2], 21: ['w', 2], 22: ['w', 2],
@@ -148,8 +154,8 @@ const path = require('path');
     offeredPoints: 3,
   });
   check(
-    'offered resignation (resigner hopeless): decision surfaced as boolean',
-    hC.hasDecision === true && typeof hC.decision === 'boolean',
+    'offered backgammon concession (dead-lost resigner): ACCEPTED',
+    hC.hasDecision === true && hC.decision === true,
     `got decision=${hC.decision}, hasDecision=${hC.hasDecision}, equityBefore=${hC.equityBefore?.toFixed(3)}, equityAfter=${hC.equityAfter?.toFixed(3)}`
   );
 
@@ -183,5 +189,6 @@ const path = require('path');
     `got decision=${hD.decision}, hasDecision=${hD.hasDecision}, equityBefore=${hD.equityBefore?.toFixed(3)}, equityAfter=${hD.equityAfter?.toFixed(3)}`
   );
 
-  console.log(`\n${pass}/${total} anchors matched`);
+  console.log(`\n${pass}/${total} anchors matched` + (failed ? ` — ${failed} FAILED` : ''));
+  if (failed) process.exitCode = 1;
 })().catch((e) => console.error('ERR', e.message));
