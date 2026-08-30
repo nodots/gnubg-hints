@@ -50,7 +50,8 @@ describe('getResignHint — gnubg-native resignation verdicts', () => {
   function buildBoard(
     blackOff: number,
     blackPoints: Record<number, number>,
-    whitePoints: Record<number, number>
+    whitePoints: Record<number, number>,
+    bars: { black?: number; white?: number } = {}
   ): HintRequest {
     const board = makeBoard();
     for (const [posStr, n] of Object.entries(blackPoints)) {
@@ -69,6 +70,16 @@ describe('getResignHint — gnubg-native resignation verdicts', () => {
       board.off.counterclockwise.checkers.push({
         id: `off-b-${i}`,
         color: 'black',
+      });
+    for (let i = 0; i < (bars.black || 0); i++)
+      board.bar.counterclockwise.checkers.push({
+        id: `bar-b-${i}`,
+        color: 'black',
+      });
+    for (let i = 0; i < (bars.white || 0); i++)
+      board.bar.clockwise.checkers.push({
+        id: `bar-w-${i}`,
+        color: 'white',
       });
     return {
       board,
@@ -158,6 +169,23 @@ describe('getResignHint — gnubg-native resignation verdicts', () => {
       0,
       { 1: 2, 2: 2, 3: 2, 4: 2, 5: 2, 6: 5 },
       { 12: 5, 13: 5, 14: 5 }
+    );
+    const hint = await hints.getResignHint(req);
+    expect(hint.resignedPoints).toBe(0);
+  });
+
+  it('short-circuits a closed-out CONTACT position to 0 (CLASS_RACE gate)', async () => {
+    // Resigner (white, active) has ALL 15 checkers on the bar against black's
+    // closed home → CLASS_CONTACT, which the gate (play.c:1265, only CLASS_RACE
+    // positions auto-resign) excludes. So resignedPoints must be exactly 0 —
+    // a certain loss is NOT resigned because the position is not a race.
+    // Same fixture the reviewer verified live: black home closed at clockwise
+    // 1-6 + the 7pt (ccw = 24-18), white 15 on the bar.
+    const req = buildBoard(
+      0,
+      { 24: 2, 23: 2, 22: 2, 21: 2, 20: 2, 19: 2, 18: 3 },
+      {},
+      { white: 15 }
     );
     const hint = await hints.getResignHint(req);
     expect(hint.resignedPoints).toBe(0);
