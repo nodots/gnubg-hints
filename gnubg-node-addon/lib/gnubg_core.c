@@ -272,6 +272,19 @@ int gnubg_hint_resign(TanBoard board, void *cube_info,
     esResign.et = EVAL_EVAL;
     esResign.ec = g_eval_context;
 
+    /* Mirror play.c's resignation gate (vendor/core/play.c:1265): gnubg's own
+     * player only consults getResignation when the position is race-or-cleaner
+     * (ClassifyPosition <= CLASS_RACE). In contact/crashed positions a player
+     * with recirculation chances must keep playing — a 0-ply cubeless verdict
+     * is least reliable there. Reaching into that gate prevents a consumer from
+     * auto-resigning a contact position gnubg itself would play on. */
+    if (ClassifyPosition(board, ci.bgv) > CLASS_RACE) {
+        out[0] = 0.0f; /* no resignation warranted */
+        out[1] = 0.0f;
+        out[2] = 0.0f;
+        return 0;
+    }
+
     float arResign[NUM_ROLLOUT_OUTPUTS];
     int nResigned = getResignation(arResign, board, &ci, &esResign);
     if (nResigned < 0)
