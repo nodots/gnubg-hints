@@ -24,13 +24,18 @@ function makeBoard(): any {
     points: Array.from({ length: 24 }, (_, i) => ({
       id: `pt-${i}`,
       position: { clockwise: i + 1, counterclockwise: 24 - i },
+      // Sparse frames are populated per-fixture; empty array keeps the shape
+      // (see the `as unknown as HintRequest` note — the board is narrower than
+      // HintBoard's full surface for the fork's Cardboard→TanBoard conversion).
       checkers: [] as any[],
     })),
     bar: {
+      // Fixtures never place bar checkers; typed as any[] to match the builder.
       clockwise: { id: 'bar-cw', checkers: [] as any[] },
       counterclockwise: { id: 'bar-ccw', checkers: [] as any[] },
     },
     off: {
+      // Fixtures pile borne-off checkers via flat push(); any[] keeps it simple.
       clockwise: { id: 'off-cw', checkers: [] as any[] },
       counterclockwise: { id: 'off-ccw', checkers: [] as any[] },
     },
@@ -123,13 +128,14 @@ describe('getResignHint — gnubg-native resignation verdicts', () => {
     expect(hint.resignedPoints).toBe(0);
   });
 
-  it('reports gammon-or-backgammon resignation for a certain-backgammon position', async () => {
-    // Black (resigner-to-be) has 14 borne off + 1 deep checker at ccw point
-    // 1; White has 2+2 checkers making points inside black's home board and
-    // 11 mid-board. Any black bear-off ends the game with white still in
-    // the home board → backgammon against black. gnubg's getResignation
-    // says resign at least a gammon (verified live: 2 or 3 depending on
-    // eval depth).
+  it('reports a gammon-or-backgammon resignation for a certain-lost position', async () => {
+    // White (resigner, active) is dead-lost: black has 14 borne off + 1 deep
+    // at ccw 1; white has 2+2 checkers on ccw 22/23 (physically 2/3, which
+    // are white's OWN home points, NOT "inside black's home board") plus 11
+    // on ccw 13. Any black bear-off wins with white still in white's home
+    // board → a certain gammon (or backgammon) against white. gnubg's
+    // getResignation says resign at least a gammon (verified live: 2,
+    // sometimes 3 depending on eval depth).
     const req = buildBoard(
       14,
       { 1: 1 },
@@ -138,6 +144,23 @@ describe('getResignHint — gnubg-native resignation verdicts', () => {
     const hint = await hints.getResignHint(req);
     expect([2, 3]).toContain(hint.resignedPoints);
     expect(hint.equityBefore).toBeLessThanOrEqual(-1);
+  });
+
+  it('does not force a resignation from a hopeless but playable race', async () => {
+    // Contact-free race: white (active, fixtures place white on board) is
+    // far behind while black is stacked in its home board, but white owns all
+    // 15 of its checkers and plays on. A race loss alone is NOT a forced
+    // resign (play.c consults getResignation, whose 0-ply verdict says play
+    // on), so resignedPoints must be exactly 0 — white actually has checkers,
+    // unlike the old (removed) fixture that handed gnubg an all-zero board
+    // (read as CLASS_OVER, all borne off).
+    const req = buildBoard(
+      0,
+      { 1: 2, 2: 2, 3: 2, 4: 2, 5: 2, 6: 5 },
+      { 12: 5, 13: 5, 14: 5 }
+    );
+    const hint = await hints.getResignHint(req);
+    expect(hint.resignedPoints).toBe(0);
   });
 
   it('reports gnubg decision (accept/reject) for an offered resignation', async () => {
