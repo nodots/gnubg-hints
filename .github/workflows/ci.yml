@@ -63,6 +63,12 @@ jobs:
       - name: Stage weights and bearoff databases
         run: npm run build:databases
 
+      # Cheap, and required even on a cache hit: node-gyp needs build/config.gypi
+      # before `build`, and it is not worth caching a generated Makefile across
+      # runner images.
+      - name: Configure native build
+        run: node ./bin/run-node-gyp.js configure
+
       - name: Build native addon
         run: node ./bin/run-node-gyp.js build
 
