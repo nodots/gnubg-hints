@@ -34,6 +34,25 @@ struct HintRequest {
     std::string positionId;  // Optional GNU Backgammon position ID
     bool hasBoard = false;
 
+    // Optional explicit on-roll seat for cube/resign hints.
+    //   -1 (default) → legacy behavior: player 0 (board[0], the opponent of
+    //                  activePlayerColor) is on roll
+    //    0           → board[0]'s player is on roll
+    //    1           → board[1]'s player (= activePlayerColor) is on roll
+    // Consumers that want a verdict for activePlayer itself should pass 1
+    // for take/double hints, and 1 with the RESIGNER declared as
+    // activePlayerColor for resign hints.
+    int fMoveOverride = -1;
+
+    // Optional offered concession for resign hints. When present (>0),
+    // getResignHint reports equityBefore/equityAfter for THIS concession
+    // size instead of gnubg's own resignation verdict; apply external.c's
+    // rule: accept iff equityAfter < equityBefore. The resigner MUST be the
+    // on-roll player (fMoveOverride:1) for these equities to be the
+    // resigner's. Must be 1/2/3 (single/gammon/backgammon); other values
+    // are rejected by getResignHint.
+    int offeredPoints = 0;
+
     // Functional factory method from JS object
     static HintRequest fromJsObject(const Napi::Object& obj);
 };
@@ -82,6 +101,19 @@ struct TakeHint {
     Napi::Object toJsObject(Napi::Env env) const;
 };
 
+// Resignation hint result (gnubg's own getResignation +
+// getResignEquities)
+struct ResignHint {
+    int resignedPoints;  // 0 = none, 1/2/3 = single/gammon/backgammon
+    double equityBefore; // resigner's equity playing on
+    double equityAfter;  // resigner's equity after the concession
+    int decision;        // gnubg's accept/reject verdict: 1 = accept, 0 = reject
+                          // Only meaningful when offeredPoints > 0; see hasDecision.
+    bool hasDecision = false; // true iff decision was set (offered mode)
+
+    Napi::Object toJsObject(Napi::Env env) const;
+};
+
 // Core wrapper class for GNU Backgammon functions
 class HintWrapper {
 public:
@@ -92,6 +124,7 @@ public:
     static std::vector<Move> getMoveHints(const HintRequest& request, int maxHints);
     static DoubleHint getDoubleHint(const HintRequest& request);
     static TakeHint getTakeHint(const HintRequest& request);
+    static ResignHint getResignHint(const HintRequest& request);
 
 private:
     static bool s_initialized;
@@ -152,6 +185,20 @@ private:
     HintRequest m_request;
     HintConfig m_config;
     TakeHint m_result;
+};
+
+class ResignHintWorker : public Napi::AsyncWorker {
+public:
+    ResignHintWorker(Napi::Function& callback, const HintRequest& request,
+                     const HintConfig& config);
+    void Execute() override;
+    void OnOK() override;
+    void OnError(const Napi::Error& error) override;
+
+private:
+    HintRequest m_request;
+    HintConfig m_config;
+    ResignHint m_result;
 };
 
 } // namespace gnubg_addon

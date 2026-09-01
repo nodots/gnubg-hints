@@ -53,3 +53,4 @@ test_core
 test_gnubg_link
 final_integration_test
 *_test
+PR_DESCRIPTION.md
