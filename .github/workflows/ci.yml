@@ -1,0 +1,101 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [development, main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: gnubg-node-addon
+
+jobs:
+  build-test:
+    name: build + test (node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['20', '22']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+
+      # binding.gyp resolves glib through pkg-config; without these the
+      # configure step fails with an opaque "pkg-config: command not found".
+      - name: Install native build deps
+        run: sudo apt-get update && sudo apt-get install -y pkg-config libglib2.0-dev
+
+      # The package's own `install` lifecycle script runs a full node-gyp
+      # rebuild, which would discard the cached build/ below. Install deps
+      # only; the native build is an explicit step.
+      - name: Install dependencies
+        run: npm install --ignore-scripts --no-audit --no-fund
+
+      # The native build is the only slow part of this workflow (~4 min cold).
+      # Key on everything that feeds it so a docs- or test-only PR reuses it.
+      - name: Cache native build
+        uses: actions/cache@v4
+        with:
+          path: gnubg-node-addon/build
+          key: >-
+            native-${{ runner.os }}-node${{ matrix.node }}-${{
+              hashFiles(
+                'gnubg-node-addon/binding.gyp',
+                'gnubg-node-addon/vendor/**',
+                'gnubg-node-addon/lib/**',
+                'gnubg-node-addon/include/**',
+                'gnubg-node-addon/src/**.cpp',
+                'gnubg-node-addon/src/**.h'
+              )
+            }}
+
+      # Copies the committed gnubg.wd / gnubg_os0.bd / gnubg_ts0.bd from the
+      # addon dir up to the repo root, where BuildFilename() looks for them.
+      - name: Stage weights and bearoff databases
+        run: npm run build:databases
+
+      # Cheap, and required even on a cache hit: node-gyp needs build/config.gypi
+      # before `build`, and it is not worth caching a generated Makefile across
+      # runner images.
+      - name: Configure native build
+        run: node ./bin/run-node-gyp.js configure
+
+      - name: Build native addon
+        run: node ./bin/run-node-gyp.js build
+
+      - name: Build TypeScript
+        run: npm run build:ts
+
+      # gnubg falls back to the race neural net when the bearoff DBs fail to
+      # load, so every verdict stays plausible and nothing errors -- the whole
+      # suite passes against a degraded engine. Fail loudly instead.
+      #
+      # Only pbc1 (gnubg_os0.bd) and pbc2 (gnubg_ts0.bd) are checked: pbcOS
+      # and pbcTS load the extended gnubg_os.bd / gnubg_ts.bd, which this repo
+      # does not ship, so MISSING is their normal state. See gnubg_core.c:15-17.
+      - name: Assert bearoff databases loaded
+        run: |
+          status=$(node -e "const {GnuBgHints}=require('./dist'); GnuBgHints.initialize().then(() => GnuBgHints.shutdown())" 2>&1 | grep 'bearoff databases' || true)
+          echo "$status"
+          if [ -z "$status" ]; then
+            echo "::error::addon did not report bearoff database status"
+            exit 1
+          fi
+          case "$status" in
+            *pbc1=MISSING*|*pbc2=MISSING*)
+              echo "::error::shipped bearoff databases failed to load; eval would silently fall back to the race net"
+              exit 1
+              ;;
+          esac
+
+      - name: Test
+        run: npx jest --ci
