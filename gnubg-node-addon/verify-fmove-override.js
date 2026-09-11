@@ -191,4 +191,9 @@ const path = require('path');
 
   console.log(`\n${pass}/${total} anchors matched` + (failed ? ` — ${failed} FAILED` : ''));
   if (failed) process.exitCode = 1;
-})().catch((e) => console.error('ERR', e.message));
+})().catch((e) => {
+  // A thrown error (addon load failure, initialize() rejection, etc.) must
+  // fail the run too — otherwise the script prints ERR and still exits 0.
+  console.error('ERR', e.message);
+  process.exitCode = 1;
+});
