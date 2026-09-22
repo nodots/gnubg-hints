@@ -199,7 +199,7 @@ describe('getResignHint — gnubg-native resignation verdicts', () => {
       14,
       { 1: 1 },
       { 22: 2, 23: 2, 13: 11 }
-    ) as any;
+    );
     losingReq.fMoveOverride = 1;
     losingReq.offeredPoints = 3;
     const losing = await hints.getResignHint(losingReq);
@@ -215,7 +215,7 @@ describe('getResignHint — gnubg-native resignation verdicts', () => {
       0,
       { 19: 2, 20: 2, 21: 2, 22: 2, 23: 2, 24: 2, 18: 3 },
       {}
-    ) as any;
+    );
     winningReq.fMoveOverride = 1;
     winningReq.offeredPoints = 1;
     const winning = await hints.getResignHint(winningReq);
