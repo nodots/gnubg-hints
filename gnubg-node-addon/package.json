@@ -23,7 +23,7 @@
     "pretest": "node ./bin/run-node-gyp.js build"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=20.17.0"
   },
   "files": [
     "dist",
@@ -43,7 +43,7 @@
   "dependencies": {
     "@nodots/backgammon-types": "^1.0.0",
     "node-addon-api": "^7.0.0",
-    "node-gyp": "^10.0.1"
+    "node-gyp": "^12.3.0"
   },
   "devDependencies": {
     "@types/jest": "^29.5.11",
