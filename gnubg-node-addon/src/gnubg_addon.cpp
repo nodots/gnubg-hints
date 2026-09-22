@@ -130,6 +130,29 @@ Napi::Value GetTakeHint(const Napi::CallbackInfo& info) {
     return env.Undefined();
 }
 
+// Get resignation hint (gnubg's own getResignation + getResignEquities)
+Napi::Value GetResignHint(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+
+    if (!g_state.initialized) {
+        Napi::Error::New(env, "Engine not initialized").ThrowAsJavaScriptException();
+        return env.Null();
+    }
+
+    if (info.Length() < 2 || !info[1].IsFunction()) {
+        Napi::TypeError::New(env, "Expected (request, callback)").ThrowAsJavaScriptException();
+        return env.Null();
+    }
+
+    auto request = HintRequest::fromJsObject(info[0].As<Napi::Object>());
+    Napi::Function callback = info[1].As<Napi::Function>();
+
+    auto* asyncWorker = new ResignHintWorker(callback, request, g_state.config);
+    asyncWorker->Queue();
+
+    return env.Undefined();
+}
+
 // Get position ID from board
 Napi::Value GetPositionId(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
@@ -212,6 +235,7 @@ Napi::Object Init(Napi::Env env, Napi::Object exports) {
     exports.Set("getMoveHints", Napi::Function::New(env, GetMoveHints));
     exports.Set("getDoubleHint", Napi::Function::New(env, GetDoubleHint));
     exports.Set("getTakeHint", Napi::Function::New(env, GetTakeHint));
+    exports.Set("getResignHint", Napi::Function::New(env, GetResignHint));
     exports.Set("getPositionId", Napi::Function::New(env, GetPositionId));
     exports.Set("decodePositionId", Napi::Function::New(env, DecodePositionId));
     exports.Set("shutdown", Napi::Function::New(env, Shutdown));

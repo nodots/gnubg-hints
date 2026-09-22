@@ -8,6 +8,7 @@
 #include "multithread.h"
 #include "output.h"
 #include "bearoff.h"
+#include "rollout.h"
 #include <glib.h>
 #include <string.h>
 #include <stdlib.h>
@@ -233,9 +234,119 @@ int gnubg_hint_take(TanBoard board, void *cube_info, void *hint_out) {
     ensure_thread_local_data();
 
     cubeinfo ci = *(cubeinfo *)cube_info;
+    // Seat contract:
+    //   fMoveOverride == 1 → evaluate the take/drop from the offeree (taker)
+    //     seat, mirroring external.c CommandAccept: SwapSides so the offeree
+    //     becomes on-roll, flip the cube owner, then ask gnubg's own
+    //     FindCubeDecision (which yields the correct TAKE/PASS/BEAVER enum).
+    //   fMoveOverride <= 0 → legacy behavior preserved: no side-swap, evaluate
+    //     for the seat the adapter's ci.fMove already selects. Used by old
+    //     callers that relied on the pre-fix board orientation.
+    if (ci.fMove == 1) {
+        SwapSides(board);
+        if (ci.fCubeOwner != -1)
+            ci.fCubeOwner = ci.fCubeOwner ? 0 : 1;
+    }
     float *equities = (float *)hint_out;
 
     return evaluate_cube(board, &ci, NULL, &equities[0], &equities[1]);
+}
+
+/* Resignation verdict using gnubg's own getResignation +
+ * getResignEquities (vendor/core/rollout.c). gnubg evaluates resignation
+ * for the on-roll seat; callers declare the resigner active (fMoveOverride:1).
+ * Uses g_eval_context so the configured difficulty plies apply. */
+int gnubg_hint_resign(TanBoard board, void *cube_info,
+                      void *hint_out) {
+    if (!g_initialized || !cube_info || !hint_out)
+        return -1;
+
+    ensure_thread_local_data();
+
+    cubeinfo ci = *(cubeinfo *)cube_info;
+    float *out = (float *)hint_out;
+
+    /* Stack-local esResign honours the configured difficulty (g_eval_context);
+     * mirrors play.c's esResign pattern. */
+    evalsetup esResign;
+    esResign.et = EVAL_EVAL;
+    esResign.ec = g_eval_context;
+
+    /* Mirror play.c's resignation gate (vendor/core/play.c:1265): gnubg's own
+     * player only consults getResignation when the position is race-or-cleaner
+     * (ClassifyPosition <= CLASS_RACE). In contact/crashed positions a player
+     * with recirculation chances must keep playing — a 0-ply cubeless verdict
+     * is least reliable there. Reaching into that gate prevents a consumer from
+     * auto-resigning a contact position gnubg itself would play on. */
+    if (ClassifyPosition(board, ci.bgv) > CLASS_RACE) {
+        out[0] = 0.0f; /* no resignation warranted */
+        out[1] = 0.0f;
+        out[2] = 0.0f;
+        return 0;
+    }
+
+    float arResign[NUM_ROLLOUT_OUTPUTS];
+    int nResigned = getResignation(arResign, board, &ci, &esResign);
+    if (nResigned < 0)
+        return -1;
+
+    /* equityAfter is only meaningful for nResigned >= 1 (a real offer).
+     * For 0 (no resignation warranted) there is no concession to price —
+     * leave both zero so consumers don't see a garbage ~-1 through the
+     * zero-initialised arResign. */
+    float rBefore = 0.0f, rAfter = 0.0f;
+    if (nResigned > 0)
+        getResignEquities(arResign, &ci, nResigned, &rBefore, &rAfter);
+
+    out[0] = (float)nResigned; /* 0 = none, 1/2/3 = single/gammon/backgammon */
+    out[1] = rBefore;
+    out[2] = rAfter;
+    return nResigned;
+}
+
+/* Evaluate the DECIDER's equities for a specific offered concession.
+ * Uses the same evaluation setup as gnubg_hint_resign but at the offered
+ * value instead of gnubg's own verdict, so consumers can apply
+ * external.c's accept rule (rEqAfter < rEqBefore) themselves. */
+int gnubg_hint_resign_offered(TanBoard board, void *cube_info,
+                              int nResigned, void *hint_out) {
+    if (!g_initialized || !cube_info || !hint_out)
+        return -1;
+
+    ensure_thread_local_data();
+
+    cubeinfo ci = *(cubeinfo *)cube_info;
+    float *out = (float *)hint_out;
+
+    float arResign[NUM_ROLLOUT_OUTPUTS];
+    {
+        /* Same machinery as gnubg_hint_resign: getResignation evaluates the
+         * position (honouring g_eval_context) and classifies the loss.
+         * Stack-local evalsetup — static would race across libuv workers. */
+        evalsetup esDefault;
+        esDefault.et = EVAL_EVAL;
+        evalcontext ec = g_eval_context;
+        ec.fCubeful = FALSE;
+        esDefault.ec = ec;
+        int rcR = getResignation(arResign, board, &ci, &esDefault);
+        if (rcR < 0)
+            return -1;
+    }
+
+    float rBefore = 0.0f, rAfter = 0.0f;
+    getResignEquities(arResign, &ci, nResigned, &rBefore, &rAfter);
+
+    /* gnubg's own accept/reject rule (vendor/core/external.c, getResignation
+     * handler): the responder accepts iff the opponent gives up equity by
+     * resigning — post-concession equity is worse than playing on, within a
+     * tiny epsilon. This is gnubg's verdict, not a fork re-implementation. */
+    const float epsilon = 1.0e-6f;
+    int accept = (rAfter - epsilon) < rBefore ? 1 : 0;
+
+    out[0] = rBefore;
+    out[1] = rAfter;
+    out[2] = (float)accept;
+    return 0;
 }
 
 const char *gnubg_position_id(const TanBoard board) {

@@ -112,6 +112,25 @@ export interface HintRequest {
   crawford: boolean
   jacoby: boolean
   beavers: boolean
+  /**
+   * Explicit on-roll seat for cube/resign hints.
+   *   -1 or omitted → legacy behavior (board[0]'s player is on roll)
+   *    0            → the opponent of activePlayerColor is on roll
+   *    1            → activePlayerColor is on roll
+   *
+   * Take/double hints evaluate the doubling decision for the on-roll
+   * player; resign hints evaluate whether that player should concede.
+   * Pass 1 when you want the verdict for activePlayerColor itself, and
+   * declare the RESIGNER as activePlayerColor for resign hints.
+   */
+  fMoveOverride?: number
+  /**
+   * Offered concession (1/2/3) for resign hints. When present, the hint
+   * reports equityBefore/equityAfter for THIS concession size instead of
+   * gnubg's own resignation verdict; apply external.c's rule:
+   * accept iff equityAfter < equityBefore.
+   */
+  offeredPoints?: number
 }
 
 /**
@@ -167,6 +186,27 @@ export interface TakeHint {
   evaluation: Evaluation
   takeEquity: number
   dropEquity: number
+}
+
+/**
+ * Resignation verdict from gnubg's own getResignation +
+ * getResignEquities (rollout.c).
+ */
+export interface ResignHint {
+  /** 0 = no resignation warranted, 1/2/3 = single/gammon/backgammon */
+  resignedPoints: 0 | 1 | 2 | 3
+  /** Resigner's equity playing on. */
+  equityBefore: number
+  /** Resigner's equity after the concession. */
+  equityAfter: number
+  /** gnubg's accept/reject verdict for an offered concession:
+   *  true = accept the offer, false = reject. Only meaningful when
+   *  offeredPoints was supplied; the adapter must relay this rather than
+   *  re-deriving the decision. */
+  decision?: boolean
+  /** true iff `decision` was produced (i.e. offeredPoints was supplied).
+   *  Absent in gnubg's own-verdict mode. */
+  hasDecision?: boolean
 }
 
 /**
@@ -422,6 +462,7 @@ export class GnuBgHints {
           crawford: request.crawford,
           jacoby: request.jacoby,
           beavers: request.beavers,
+          fMoveOverride: request.fMoveOverride ?? -1,
         },
         (err: Error | null, hint: any) => {
           if (err) {
@@ -477,6 +518,7 @@ export class GnuBgHints {
           crawford: request.crawford,
           jacoby: request.jacoby,
           beavers: request.beavers,
+          fMoveOverride: request.fMoveOverride ?? -1,
         },
         (err: Error | null, hint: any) => {
           if (err) {
@@ -497,6 +539,66 @@ export class GnuBgHints {
       addon.shutdown()
       this.initialized = false
     }
+  }
+
+  /**
+   * Get resignation verdict using gnubg's own getResignation +
+   * getResignEquities (rollout.c). Returns how many points the player
+   * on roll should resign (0 = none, 1/2/3 = single/gammon/backgammon)
+   * plus the equities before and after the concession.
+   */
+  static async getResignHint(request: HintRequest): Promise<ResignHint> {
+    if (!this.initialized) {
+      throw new Error('GnuBgHints not initialized. Call initialize() first.')
+    }
+
+    if (!request?.board || typeof request.board !== 'object') {
+      return Promise.reject(new Error('Invalid board data'))
+    }
+
+    const activePlayerColor = request.activePlayerColor ?? 'white'
+    const activePlayerDirection = request.activePlayerDirection
+    if (!activePlayerDirection) {
+      return Promise.reject(
+        new Error('activePlayerDirection is required for GNU normalization')
+      )
+    }
+
+    return new Promise((resolve, reject) => {
+      const { gnubgBoard } = this.convertBoardToGnuBg(
+        request.board,
+        activePlayerColor,
+        activePlayerDirection
+      )
+
+      addon.getResignHint(
+        {
+          board: gnubgBoard,
+          cubeValue: request.cubeValue,
+          cubeOwner: this.normalizeCubeOwner(
+            request.cubeOwner,
+            activePlayerColor
+          ),
+          matchScore: this.normalizeMatchScore(
+            request.matchScore,
+            activePlayerColor
+          ),
+          matchLength: request.matchLength,
+          crawford: request.crawford,
+          jacoby: request.jacoby,
+          beavers: request.beavers,
+          fMoveOverride: request.fMoveOverride ?? -1,
+          offeredPoints: request.offeredPoints ?? 0,
+        },
+        (err: Error | null, hint: any) => {
+          if (err) {
+            reject(err)
+          } else {
+            resolve(this.convertResignHintFromGnuBg(hint))
+          }
+        }
+      )
+    })
   }
 
 /**
@@ -1085,6 +1187,19 @@ export class GnuBgHints {
       evaluation: this.normalizeEvaluation(gnubgHint.evaluation),
       takeEquity: gnubgHint.takeEquity,
       dropEquity: gnubgHint.dropEquity,
+    }
+  }
+
+  /**
+   * Convert GNU Backgammon resignation hint
+   */
+  private static convertResignHintFromGnuBg(gnubgHint: any): ResignHint {
+    return {
+      resignedPoints: gnubgHint.resignedPoints,
+      equityBefore: gnubgHint.equityBefore,
+      equityAfter: gnubgHint.equityAfter,
+      decision: gnubgHint.decision === undefined ? undefined : gnubgHint.decision === 1,
+      hasDecision: gnubgHint.hasDecision === true,
     }
   }
 }
